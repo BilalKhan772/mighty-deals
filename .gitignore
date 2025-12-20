@@ -1,0 +1,27 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub/
+build/
+
+# iOS / Android
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+android/.gradle/
+android/local.properties
+
+# Web
+web/build/
+
+# Environment & Secrets
+.env
+**/env.dart
+
+# Supabase local
+.supabase/
+
+# OS
+.DS_Store
+Thumbs.db
