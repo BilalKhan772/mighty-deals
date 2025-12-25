@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/routing/route_names.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../profile/logic/profile_controller.dart';
+import '../../wallet/logic/wallet_controller.dart';
 import '../logic/auth_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -27,6 +29,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     email.dispose();
     pass.dispose();
     super.dispose();
+  }
+
+  void _invalidateAfterAuth() {
+    // ✅ IMPORTANT: clear cached data when session changes
+    ref.invalidate(myProfileProvider);
+    ref.invalidate(myWalletProvider);
+    ref.invalidate(myLedgerProvider);
   }
 
   @override
@@ -54,14 +63,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const SizedBox(height: 12),
-
                     Text(
                       'Login',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineLarge,
                     ),
                     const SizedBox(height: 8),
-
                     Text(
                       'Sign in to your account.',
                       textAlign: TextAlign.center,
@@ -70,9 +77,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         fontSize: 14.5,
                       ),
                     ),
-
                     const SizedBox(height: 22),
-
                     _GlassCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -86,7 +91,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 14),
-
                           _AuthField(
                             controller: email,
                             hint: 'Email',
@@ -96,7 +100,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             suffix: null,
                           ),
                           const SizedBox(height: 12),
-
                           _AuthField(
                             controller: pass,
                             hint: 'Password',
@@ -104,8 +107,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             prefixIcon: Icons.lock_outline_rounded,
                             obscureText: _hidePass,
                             suffix: IconButton(
-                              onPressed: () =>
-                                  setState(() => _hidePass = !_hidePass),
+                              onPressed: () => setState(() => _hidePass = !_hidePass),
                               icon: Icon(
                                 _hidePass
                                     ? Icons.visibility_outlined
@@ -113,9 +115,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 18),
-
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 2),
                             child: AppButton(
@@ -126,19 +126,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   : () async {
                                       final ok = await ref
                                           .read(authControllerProvider.notifier)
-                                          .login(
-                                            email.text.trim(),
-                                            pass.text,
-                                          );
+                                          .login(email.text.trim(), pass.text);
 
                                       if (!context.mounted) return;
-                                      if (ok) context.go(RouteNames.home);
+
+                                      if (ok) {
+                                        _invalidateAfterAuth();
+                                        context.go(RouteNames.home);
+                                      }
                                     },
                             ),
                           ),
-
                           const SizedBox(height: 12),
-
                           Center(
                             child: Text(
                               'Forgot password?',
@@ -148,9 +147,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 10),
-
                           Center(
                             child: GestureDetector(
                               onTap: () => context.go(RouteNames.signup),
@@ -179,7 +176,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 10),
                   ],
                 ),

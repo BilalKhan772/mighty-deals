@@ -7,6 +7,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/routing/route_names.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../profile/logic/profile_controller.dart';
+import '../../wallet/logic/wallet_controller.dart';
 import '../logic/auth_controller.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -32,6 +34,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     super.dispose();
   }
 
+  void _invalidateAfterAuth() {
+    // ✅ IMPORTANT: clear cached data when session changes
+    ref.invalidate(myProfileProvider);
+    ref.invalidate(myWalletProvider);
+    ref.invalidate(myLedgerProvider);
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(authControllerProvider);
@@ -46,7 +55,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
     return Scaffold(
       body: Container(
-        color: const Color(0xFF070B14), // solid deep navy
+        color: const Color(0xFF070B14),
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
@@ -57,14 +66,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const SizedBox(height: 12),
-
                     Text(
                       'Sign Up',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineLarge,
                     ),
                     const SizedBox(height: 8),
-
                     Text(
                       'Create your account to get started.',
                       textAlign: TextAlign.center,
@@ -73,9 +80,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         fontSize: 14.5,
                       ),
                     ),
-
                     const SizedBox(height: 22),
-
                     _GlassCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,7 +94,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             ),
                           ),
                           const SizedBox(height: 14),
-
                           _AuthField(
                             controller: email,
                             hint: 'Email',
@@ -99,7 +103,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             suffix: null,
                           ),
                           const SizedBox(height: 12),
-
                           _AuthField(
                             controller: pass,
                             hint: 'Password',
@@ -107,8 +110,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             prefixIcon: Icons.lock_outline_rounded,
                             obscureText: _hidePass,
                             suffix: IconButton(
-                              onPressed: () =>
-                                  setState(() => _hidePass = !_hidePass),
+                              onPressed: () => setState(() => _hidePass = !_hidePass),
                               icon: Icon(
                                 _hidePass
                                     ? Icons.visibility_outlined
@@ -117,7 +119,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-
                           _AuthField(
                             controller: confirm,
                             hint: 'Confirm Password',
@@ -125,8 +126,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             prefixIcon: Icons.lock_outline_rounded,
                             obscureText: _hideConfirm,
                             suffix: IconButton(
-                              onPressed: () =>
-                                  setState(() => _hideConfirm = !_hideConfirm),
+                              onPressed: () => setState(() => _hideConfirm = !_hideConfirm),
                               icon: Icon(
                                 _hideConfirm
                                     ? Icons.visibility_outlined
@@ -134,11 +134,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                               ),
                             ),
                           ),
-
-                          // ✅ Give the button room for its shadow/glow
                           const SizedBox(height: 18),
-
-                          // ✅ Inset the button slightly so glow doesn't touch card border
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 2),
                             child: AppButton(
@@ -148,12 +144,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                   ? null
                                   : () async {
                                       if (pass.text != confirm.text) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
+                                        ScaffoldMessenger.of(context).showSnackBar(
                                           const SnackBar(
-                                            content: Text(
-                                              'Passwords do not match',
-                                            ),
+                                            content: Text('Passwords do not match'),
                                           ),
                                         );
                                         return;
@@ -161,20 +154,18 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
                                       final ok = await ref
                                           .read(authControllerProvider.notifier)
-                                          .signup(
-                                            email.text.trim(),
-                                            pass.text,
-                                          );
+                                          .signup(email.text.trim(), pass.text);
 
                                       if (!context.mounted) return;
-                                      if (ok) context.go(RouteNames.home);
+
+                                      if (ok) {
+                                        _invalidateAfterAuth();
+                                        context.go(RouteNames.home);
+                                      }
                                     },
                             ),
                           ),
-
-                          // ✅ Small bottom space to keep everything inside card nicely
                           const SizedBox(height: 12),
-
                           Center(
                             child: GestureDetector(
                               onTap: () => context.go(RouteNames.login),
@@ -185,9 +176,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                     fontSize: 13.5,
                                   ),
                                   children: const [
-                                    TextSpan(
-                                      text: 'Already have an account? ',
-                                    ),
+                                    TextSpan(text: 'Already have an account? '),
                                     TextSpan(
                                       text: 'Login',
                                       style: TextStyle(
@@ -205,7 +194,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: 10),
                   ],
                 ),
@@ -231,7 +219,6 @@ class _GlassCard extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
         child: Container(
-          // ✅ Slightly more bottom padding so button shadow doesn't feel outside
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
           decoration: BoxDecoration(
             color: const Color.fromRGBO(10, 18, 32, 0.45),
