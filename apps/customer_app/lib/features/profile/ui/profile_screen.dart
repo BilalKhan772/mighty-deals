@@ -22,12 +22,18 @@ class ProfileScreen extends ConsumerWidget {
   Color w(double a) => Colors.white.withAlpha((a * 255).round());
 
   static const List<String> _cities = [
-    'Peshawar',
+    'Abbottabad',
+    'Dera Ismail Khan',
+    'Faisalabad',
     'Islamabad',
-    'Rawalpindi',
-    'Lahore',
     'Karachi',
-    'Quetta',
+    'Mardan',
+    'Multan',
+    'Peshawar',
+    'Rawalpindi',
+    'Sialkot',
+    'Swabi',
+    'Swat',
   ];
 
   @override
@@ -35,7 +41,6 @@ class ProfileScreen extends ConsumerWidget {
     final profileAsync = ref.watch(myProfileProvider);
     final updateState = ref.watch(profileUpdateControllerProvider);
 
-    // listen for success/error
     ref.listen(profileUpdateControllerProvider, (prev, next) {
       next.whenOrNull(
         data: (_) {
@@ -106,12 +111,14 @@ class ProfileScreen extends ConsumerWidget {
           data: (p) {
             final isSaving = updateState.isLoading;
 
-            final phoneValue = (p.phone == null || p.phone!.isEmpty) ? '-' : p.phone!;
+            final phoneValue =
+                (p.phone == null || p.phone!.isEmpty) ? '-' : p.phone!;
             final waValue =
                 (p.whatsapp == null || p.whatsapp!.isEmpty) ? '-' : p.whatsapp!;
             final addressValue =
                 (p.address == null || p.address!.isEmpty) ? '-' : p.address!;
-            final cityValue = (p.city == null || p.city!.isEmpty) ? '-' : p.city!;
+            final cityValue =
+                (p.city == null || p.city!.isEmpty) ? '-' : p.city!;
 
             return SafeArea(
               child: Align(
@@ -162,6 +169,9 @@ class ProfileScreen extends ConsumerWidget {
                           height: 52,
                           child: OutlinedButton(
                             onPressed: () async {
+                              final shouldLogout = await _showLogoutDialog(context);
+                              if (shouldLogout != true) return;
+
                               await Supabase.instance.client.auth.signOut();
                               _invalidateAll(ref);
 
@@ -195,6 +205,52 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
+  Future<bool?> _showLogoutDialog(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (_) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0B1220),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Text(
+            'Log out?',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.2,
+            ),
+          ),
+          content: const Text(
+            'Are you sure you want to log out of your account?',
+            style: TextStyle(color: Colors.white70, height: 1.35),
+          ),
+          actionsPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              style: TextButton.styleFrom(foregroundColor: Colors.white70),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF06B6D4),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Log out',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   void _openEditSheet({
     required BuildContext context,
     required WidgetRef ref,
@@ -206,7 +262,8 @@ class ProfileScreen extends ConsumerWidget {
     final phoneC = TextEditingController(text: initialPhone);
     final waC = TextEditingController(text: initialWhatsapp);
     final addrC = TextEditingController(text: initialAddress);
-    String city = initialCity;
+
+    String city = _cities.contains(initialCity) ? initialCity : '';
 
     showModalBottomSheet(
       context: context,
@@ -256,16 +313,32 @@ class ProfileScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 14),
 
-                      _EditField(label: 'Phone', controller: phoneC, hint: '03xx xxxx xxx'),
+                      _LabeledTextField(
+                        label: 'Phone',
+                        controller: phoneC,
+                        hint: '03xx xxxx xxx',
+                        keyboardType: TextInputType.phone,
+                      ),
                       const SizedBox(height: 10),
 
-                      _EditField(label: 'WhatsApp', controller: waC, hint: '03xx xxxx xxx'),
+                      _LabeledTextField(
+                        label: 'WhatsApp',
+                        controller: waC,
+                        hint: '03xx xxxx xxx',
+                        keyboardType: TextInputType.phone,
+                      ),
                       const SizedBox(height: 10),
 
-                      _EditField(label: 'Address', controller: addrC, hint: 'Street / Area'),
+                      _LabeledTextField(
+                        label: 'Address',
+                        controller: addrC,
+                        hint: 'Street / Area',
+                        keyboardType: TextInputType.streetAddress,
+                      ),
                       const SizedBox(height: 10),
 
-                      _CityDropdown(
+                      _LabeledCityDropdown(
+                        label: 'City',
                         value: city.isEmpty ? null : city,
                         items: _cities,
                         onChanged: (v) => setState(() => city = v ?? ''),
@@ -290,9 +363,7 @@ class ProfileScreen extends ConsumerWidget {
                               return;
                             }
 
-                            await ref
-                                .read(profileUpdateControllerProvider.notifier)
-                                .update(
+                            await ref.read(profileUpdateControllerProvider.notifier).update(
                                   phone: phone,
                                   whatsapp: wa,
                                   address: addr,
@@ -422,15 +493,18 @@ class _PrimaryButton extends StatelessWidget {
   }
 }
 
-class _EditField extends StatelessWidget {
+// ✅ Label outside + TextField inside (NO floating labels)
+class _LabeledTextField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
   final String hint;
+  final TextInputType? keyboardType;
 
-  const _EditField({
+  const _LabeledTextField({
     required this.label,
     required this.controller,
     required this.hint,
+    this.keyboardType,
   });
 
   @override
@@ -447,9 +521,10 @@ class _EditField extends StatelessWidget {
               fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           TextField(
             controller: controller,
+            keyboardType: keyboardType,
             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
             decoration: InputDecoration(
               hintText: hint,
@@ -468,7 +543,7 @@ class _EditField extends StatelessWidget {
                 borderRadius: BorderRadius.all(Radius.circular(14)),
                 borderSide: BorderSide(color: Color(0xFF06B6D4)),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
             ),
           ),
         ],
@@ -477,12 +552,14 @@ class _EditField extends StatelessWidget {
   }
 }
 
-class _CityDropdown extends StatelessWidget {
+class _LabeledCityDropdown extends StatelessWidget {
+  final String label;
   final String? value;
   final List<String> items;
   final ValueChanged<String?> onChanged;
 
-  const _CityDropdown({
+  const _LabeledCityDropdown({
+    required this.label,
     required this.value,
     required this.items,
     required this.onChanged,
@@ -491,37 +568,51 @@ class _CityDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _GlassTile(
-      child: DropdownButtonFormField<String>(
-        value: value,
-        dropdownColor: const Color(0xFF0B1220),
-        items: items
-            .map(
-              (c) => DropdownMenuItem(
-                value: c,
-                child: Text(c, style: const TextStyle(color: Colors.white)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.65),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: value,
+            dropdownColor: const Color(0xFF0B1220),
+            items: items
+                .map(
+                  (c) => DropdownMenuItem(
+                    value: c,
+                    child: Text(c, style: const TextStyle(color: Colors.white)),
+                  ),
+                )
+                .toList(),
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              hintText: 'Select your city',
+              hintStyle: TextStyle(color: Colors.white.withOpacity(0.35)),
+              filled: true,
+              fillColor: const Color.fromRGBO(255, 255, 255, 0.06),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: Colors.white.withOpacity(0.10)),
               ),
-            )
-            .toList(),
-        onChanged: onChanged,
-        decoration: InputDecoration(
-          labelText: 'City',
-          labelStyle: TextStyle(color: Colors.white.withOpacity(0.65)),
-          filled: true,
-          fillColor: const Color.fromRGBO(255, 255, 255, 0.06),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.white.withOpacity(0.10)),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: Colors.white.withOpacity(0.10)),
+              ),
+              focusedBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(14)),
+                borderSide: BorderSide(color: Color(0xFF06B6D4)),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+            ),
           ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.white.withOpacity(0.10)),
-          ),
-          focusedBorder: const OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(14)),
-            borderSide: BorderSide(color: Color(0xFF06B6D4)),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        ),
+        ],
       ),
     );
   }
