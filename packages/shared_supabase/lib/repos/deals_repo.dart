@@ -10,10 +10,34 @@ class DealsRepoSB {
     required int limit,
     required int offset,
   }) async {
-    // ✅ Start with base query
+    // ✅ Select with join: deals -> restaurants
+    // IMPORTANT: Requires FK relationship (deals.restaurant_id -> restaurants.id)
     var q = SB.client
         .from(Tables.deals)
-        .select()
+        .select('''
+          id,
+          restaurant_id,
+          city,
+          title,
+          description,
+          category,
+          price_mighty,
+          price_rs,
+          tag,
+          is_active,
+          created_at,
+          restaurant:restaurants(
+            id,
+            name,
+            city,
+            address,
+            phone,
+            whatsapp,
+            photo_url,
+            is_restricted,
+            is_deleted
+          )
+        ''')
         .eq('city', city)
         .eq('is_active', true);
 
@@ -22,11 +46,12 @@ class DealsRepoSB {
       q = q.eq('category', category);
     }
 
-    // ✅ Simple search (optional)
-    // NOTE: This assumes you have a 'title' column. If your search is restaurant name,
-    // we’ll do join later. For now keep minimal & working.
-    if (searchRestaurantName.trim().isNotEmpty) {
-      q = q.ilike('title', '%${searchRestaurantName.trim()}%');
+    // ✅ Restaurant name search (joined table)
+    final s = searchRestaurantName.trim();
+    if (s.isNotEmpty) {
+      // PostgREST path for embedded relationship filters typically uses real table name
+      // even if you alias it in select.
+      q = q.ilike('restaurants.name', '%$s%');
     }
 
     final rows = await q
