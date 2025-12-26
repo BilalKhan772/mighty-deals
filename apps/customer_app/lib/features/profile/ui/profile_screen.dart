@@ -22,19 +22,21 @@ class ProfileScreen extends ConsumerWidget {
   Color w(double a) => Colors.white.withAlpha((a * 255).round());
 
   static const List<String> _cities = [
-    'Abbottabad',
-    'Dera Ismail Khan',
-    'Faisalabad',
-    'Islamabad',
-    'Karachi',
-    'Mardan',
-    'Multan',
-    'Peshawar',
-    'Rawalpindi',
-    'Sialkot',
-    'Swabi',
-    'Swat',
-  ];
+  'Abbottabad',
+  'Dera Ismail Khan',
+  'Faisalabad',
+  'Islamabad',
+  'Karachi',
+  'Lahore',
+  'Mardan',
+  'Multan',
+  'Peshawar',
+  'Rawalpindi',
+  'Sialkot',
+  'Swabi',
+  'Swat',
+];
+
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
