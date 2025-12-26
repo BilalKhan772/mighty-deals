@@ -1,9 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_models/profile_model.dart';
 import '../data/profile_repo.dart';
 
 final profileRepoProvider = Provider<ProfileRepo>((ref) => ProfileRepo());
 
-final myProfileProvider = FutureProvider((ref) async {
+final myProfileProvider = FutureProvider<ProfileModel>((ref) async {
   return ref.read(profileRepoProvider).getMyProfile();
 });
 

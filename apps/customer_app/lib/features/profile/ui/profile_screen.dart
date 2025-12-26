@@ -21,13 +21,39 @@ class ProfileScreen extends ConsumerWidget {
 
   Color w(double a) => Colors.white.withAlpha((a * 255).round());
 
+  static const List<String> _cities = [
+    'Peshawar',
+    'Islamabad',
+    'Rawalpindi',
+    'Lahore',
+    'Karachi',
+    'Quetta',
+  ];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(myProfileProvider);
+    final updateState = ref.watch(profileUpdateControllerProvider);
 
-    // ✅ You said: "thora sa nichay" (slightly down)
-    // Just adjust this spacing. Keep it small.
-    const double topGap = 14; // (was 6) -> now slightly lower, more balanced
+    // listen for success/error
+    ref.listen(profileUpdateControllerProvider, (prev, next) {
+      next.whenOrNull(
+        data: (_) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile updated ✅')),
+          );
+        },
+        error: (e, _) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Update failed: $e')),
+          );
+        },
+      );
+    });
+
+    const double topGap = 14;
 
     return Scaffold(
       backgroundColor: const Color(0xFF070B14),
@@ -78,6 +104,15 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
           data: (p) {
+            final isSaving = updateState.isLoading;
+
+            final phoneValue = (p.phone == null || p.phone!.isEmpty) ? '-' : p.phone!;
+            final waValue =
+                (p.whatsapp == null || p.whatsapp!.isEmpty) ? '-' : p.whatsapp!;
+            final addressValue =
+                (p.address == null || p.address!.isEmpty) ? '-' : p.address!;
+            final cityValue = (p.city == null || p.city!.isEmpty) ? '-' : p.city!;
+
             return SafeArea(
               child: Align(
                 alignment: Alignment.topCenter,
@@ -88,56 +123,37 @@ class ProfileScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const SizedBox(height: topGap), // ✅ slightly down
+                        const SizedBox(height: topGap),
 
                         _ProfileField(label: 'Unique ID', value: p.uniqueCode),
                         const SizedBox(height: 12),
 
-                        _ProfileField(
-                          label: 'Phone',
-                          value: (p.phone == null || p.phone!.isEmpty)
-                              ? '-'
-                              : p.phone!,
-                        ),
+                        _ProfileField(label: 'Phone', value: phoneValue),
                         const SizedBox(height: 12),
 
-                        _ProfileField(
-                          label: 'WhatsApp',
-                          value: (p.whatsapp == null || p.whatsapp!.isEmpty)
-                              ? '-'
-                              : p.whatsapp!,
-                        ),
+                        _ProfileField(label: 'WhatsApp', value: waValue),
                         const SizedBox(height: 12),
 
-                        _ProfileField(
-                          label: 'Address',
-                          value: (p.address == null || p.address!.isEmpty)
-                              ? '-'
-                              : p.address!,
-                        ),
+                        _ProfileField(label: 'Address', value: addressValue),
                         const SizedBox(height: 12),
 
-                        _ProfileField(
-                          label: 'City',
-                          value: (p.city == null || p.city!.isEmpty)
-                              ? '-'
-                              : p.city!,
-                        ),
+                        _ProfileField(label: 'City', value: cityValue),
                         const SizedBox(height: 18),
 
                         SizedBox(
                           height: 56,
                           child: _PrimaryButton(
-                            text: 'Edit',
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Edit abhi disabled hai (Profile updates RPC se honge).',
-                                  ),
-                                ),
-                              );
-                            },
+                            text: isSaving ? 'Saving...' : 'Edit',
+                            onPressed: isSaving
+                                ? null
+                                : () => _openEditSheet(
+                                      context: context,
+                                      ref: ref,
+                                      initialPhone: p.phone ?? '',
+                                      initialWhatsapp: p.whatsapp ?? '',
+                                      initialAddress: p.address ?? '',
+                                      initialCity: p.city ?? '',
+                                    ),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -176,6 +192,137 @@ class ProfileScreen extends ConsumerWidget {
           },
         ),
       ),
+    );
+  }
+
+  void _openEditSheet({
+    required BuildContext context,
+    required WidgetRef ref,
+    required String initialPhone,
+    required String initialWhatsapp,
+    required String initialAddress,
+    required String initialCity,
+  }) {
+    final phoneC = TextEditingController(text: initialPhone);
+    final waC = TextEditingController(text: initialWhatsapp);
+    final addrC = TextEditingController(text: initialAddress);
+    String city = initialCity;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        final bottom = MediaQuery.of(context).viewInsets.bottom;
+
+        return Padding(
+          padding: EdgeInsets.only(bottom: bottom),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Color(0xFF060A14),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              border: Border(
+                top: BorderSide(color: Color.fromRGBO(255, 255, 255, 0.10)),
+              ),
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+            child: SafeArea(
+              top: false,
+              child: StatefulBuilder(
+                builder: (context, setState) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 44,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: const Color.fromRGBO(255, 255, 255, 0.20),
+                          borderRadius: BorderRadius.circular(99),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      const Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Edit Profile',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+
+                      _EditField(label: 'Phone', controller: phoneC, hint: '03xx xxxx xxx'),
+                      const SizedBox(height: 10),
+
+                      _EditField(label: 'WhatsApp', controller: waC, hint: '03xx xxxx xxx'),
+                      const SizedBox(height: 10),
+
+                      _EditField(label: 'Address', controller: addrC, hint: 'Street / Area'),
+                      const SizedBox(height: 10),
+
+                      _CityDropdown(
+                        value: city.isEmpty ? null : city,
+                        items: _cities,
+                        onChanged: (v) => setState(() => city = v ?? ''),
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      SizedBox(
+                        height: 52,
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () async {
+                            final phone = phoneC.text.trim();
+                            final wa = waC.text.trim();
+                            final addr = addrC.text.trim();
+                            final c = city.trim();
+
+                            if (phone.isEmpty || wa.isEmpty || addr.isEmpty || c.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Please fill all fields')),
+                              );
+                              return;
+                            }
+
+                            await ref
+                                .read(profileUpdateControllerProvider.notifier)
+                                .update(
+                                  phone: phone,
+                                  whatsapp: wa,
+                                  address: addr,
+                                  city: c,
+                                );
+
+                            if (context.mounted) Navigator.pop(context);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF06B6D4),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Text(
+                            'Save',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -250,7 +397,7 @@ class _GlassTile extends StatelessWidget {
 
 class _PrimaryButton extends StatelessWidget {
   final String text;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   const _PrimaryButton({required this.text, required this.onPressed});
 
   @override
@@ -269,6 +416,111 @@ class _PrimaryButton extends StatelessWidget {
           fontSize: 16,
           fontWeight: FontWeight.w800,
           letterSpacing: -0.2,
+        ),
+      ),
+    );
+  }
+}
+
+class _EditField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final String hint;
+
+  const _EditField({
+    required this.label,
+    required this.controller,
+    required this.hint,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassTile(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.65),
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: controller,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(color: Colors.white.withOpacity(0.35)),
+              filled: true,
+              fillColor: const Color.fromRGBO(255, 255, 255, 0.06),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: Colors.white.withOpacity(0.10)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: Colors.white.withOpacity(0.10)),
+              ),
+              focusedBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(14)),
+                borderSide: BorderSide(color: Color(0xFF06B6D4)),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CityDropdown extends StatelessWidget {
+  final String? value;
+  final List<String> items;
+  final ValueChanged<String?> onChanged;
+
+  const _CityDropdown({
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassTile(
+      child: DropdownButtonFormField<String>(
+        value: value,
+        dropdownColor: const Color(0xFF0B1220),
+        items: items
+            .map(
+              (c) => DropdownMenuItem(
+                value: c,
+                child: Text(c, style: const TextStyle(color: Colors.white)),
+              ),
+            )
+            .toList(),
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          labelText: 'City',
+          labelStyle: TextStyle(color: Colors.white.withOpacity(0.65)),
+          filled: true,
+          fillColor: const Color.fromRGBO(255, 255, 255, 0.06),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.white.withOpacity(0.10)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: Colors.white.withOpacity(0.10)),
+          ),
+          focusedBorder: const OutlineInputBorder(
+            borderRadius: BorderRadius.all(Radius.circular(14)),
+            borderSide: BorderSide(color: Color(0xFF06B6D4)),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         ),
       ),
     );

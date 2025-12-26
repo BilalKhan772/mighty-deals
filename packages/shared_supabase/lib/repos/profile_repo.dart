@@ -1,3 +1,4 @@
+// packages/shared_supabase/lib/repos/profile_repo.dart
 import 'package:shared_models/profile_model.dart';
 import '../supabase_client.dart';
 import '../supabase_tables.dart';
@@ -7,13 +8,14 @@ class ProfileRepoSB {
     final uid = SB.auth.currentUser?.id;
     if (uid == null) throw Exception('Not logged in');
 
-    final data = await SB.client
+    final row = await SB.client
         .from(Tables.profiles)
-        .select()
+        .select('*')
         .eq('id', uid)
         .single();
 
-    return ProfileModel.fromMap(data);
+    // ✅ Your model uses fromMap (not fromJson)
+    return ProfileModel.fromMap(row);
   }
 
   Future<void> updateMyProfile({
@@ -25,16 +27,18 @@ class ProfileRepoSB {
     final uid = SB.auth.currentUser?.id;
     if (uid == null) throw Exception('Not logged in');
 
-    final isComplete = phone.trim().isNotEmpty &&
-        whatsapp.trim().isNotEmpty &&
-        address.trim().isNotEmpty &&
-        city.trim().isNotEmpty;
+    final p = phone.trim();
+    final w = whatsapp.trim();
+    final a = address.trim();
+    final c = city.trim();
+
+    final isComplete = p.isNotEmpty && w.isNotEmpty && a.isNotEmpty && c.isNotEmpty;
 
     await SB.client.from(Tables.profiles).update({
-      'phone': phone.trim(),
-      'whatsapp': whatsapp.trim(),
-      'address': address.trim(),
-      'city': city.trim(),
+      'phone': p,
+      'whatsapp': w,
+      'address': a,
+      'city': c,
       'is_profile_complete': isComplete,
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', uid);
