@@ -117,8 +117,7 @@ class ProfileScreen extends ConsumerWidget {
                 (p.whatsapp == null || p.whatsapp!.isEmpty) ? '-' : p.whatsapp!;
             final addressValue =
                 (p.address == null || p.address!.isEmpty) ? '-' : p.address!;
-            final cityValue =
-                (p.city == null || p.city!.isEmpty) ? '-' : p.city!;
+            final cityValue = (p.city == null || p.city!.isEmpty) ? '-' : p.city!;
 
             return SafeArea(
               child: Align(
@@ -237,7 +236,9 @@ class ProfileScreen extends ConsumerWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF06B6D4),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 elevation: 0,
               ),
               child: const Text(
@@ -251,6 +252,7 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
+  // ✅ Edit Sheet: Header clean + inputs single-layer like City
   void _openEditSheet({
     required BuildContext context,
     required WidgetRef ref,
@@ -269,126 +271,135 @@ class ProfileScreen extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      elevation: 0,
       builder: (_) {
         final bottom = MediaQuery.of(context).viewInsets.bottom;
 
         return Padding(
           padding: EdgeInsets.only(bottom: bottom),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFF060A14),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-              border: Border(
-                top: BorderSide(color: Color.fromRGBO(255, 255, 255, 0.10)),
-              ),
-            ),
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-            child: SafeArea(
-              top: false,
-              child: StatefulBuilder(
-                builder: (context, setState) {
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: const Color.fromRGBO(255, 255, 255, 0.20),
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      const Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          'Edit Profile',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-
-                      _LabeledTextField(
-                        label: 'Phone',
-                        controller: phoneC,
-                        hint: '03xx xxxx xxx',
-                        keyboardType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 10),
-
-                      _LabeledTextField(
-                        label: 'WhatsApp',
-                        controller: waC,
-                        hint: '03xx xxxx xxx',
-                        keyboardType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 10),
-
-                      _LabeledTextField(
-                        label: 'Address',
-                        controller: addrC,
-                        hint: 'Street / Area',
-                        keyboardType: TextInputType.streetAddress,
-                      ),
-                      const SizedBox(height: 10),
-
-                      _LabeledCityDropdown(
-                        label: 'City',
-                        value: city.isEmpty ? null : city,
-                        items: _cities,
-                        onChanged: (v) => setState(() => city = v ?? ''),
-                      ),
-
-                      const SizedBox(height: 14),
-
-                      SizedBox(
-                        height: 52,
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () async {
-                            final phone = phoneC.text.trim();
-                            final wa = waC.text.trim();
-                            final addr = addrC.text.trim();
-                            final c = city.trim();
-
-                            if (phone.isEmpty || wa.isEmpty || addr.isEmpty || c.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Please fill all fields')),
-                              );
-                              return;
-                            }
-
-                            await ref.read(profileUpdateControllerProvider.notifier).update(
-                                  phone: phone,
-                                  whatsapp: wa,
-                                  address: addr,
-                                  city: c,
-                                );
-
-                            if (context.mounted) Navigator.pop(context);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF06B6D4),
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: const Text(
-                            'Save',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                          ),
-                        ),
-                      ),
+          child: Material(
+            color: Colors.transparent,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              child: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFF060A14),
+                      Color(0xFF050914),
+                      Color(0xFF040814),
                     ],
-                  );
-                },
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+                child: SafeArea(
+                  top: false,
+                  child: StatefulBuilder(
+                    builder: (ctx, setSheetState) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // ✅ Clean header text only (no divider/line)
+                          const Text(
+                            'Edit Profile',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+
+                          _FlatField(
+                            label: 'Phone',
+                            controller: phoneC,
+                            hint: '03xx xxxx xxx',
+                            keyboardType: TextInputType.phone,
+                            maxLines: 1,
+                          ),
+                          const SizedBox(height: 12),
+
+                          _FlatField(
+                            label: 'WhatsApp',
+                            controller: waC,
+                            hint: '03xx xxxx xxx',
+                            keyboardType: TextInputType.phone,
+                            maxLines: 1,
+                          ),
+                          const SizedBox(height: 12),
+
+                          _FlatField(
+                            label: 'Address',
+                            controller: addrC,
+                            hint: 'Street / Area',
+                            keyboardType: TextInputType.streetAddress,
+                            maxLines: 2,
+                          ),
+                          const SizedBox(height: 12),
+
+                          _FlatCity(
+                            label: 'City',
+                            value: city.isEmpty ? null : city,
+                            items: _cities,
+                            onChanged: (v) => setSheetState(() => city = v ?? ''),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          SizedBox(
+                            height: 56,
+                            child: ElevatedButton(
+                              onPressed: () async {
+                                final phone = phoneC.text.trim();
+                                final wa = waC.text.trim();
+                                final addr = addrC.text.trim();
+                                final c = city.trim();
+
+                                if (phone.isEmpty || wa.isEmpty || addr.isEmpty || c.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Please fill all fields')),
+                                  );
+                                  return;
+                                }
+
+                                await ref
+                                    .read(profileUpdateControllerProvider.notifier)
+                                    .update(
+                                      phone: phone,
+                                      whatsapp: wa,
+                                      address: addr,
+                                      city: c,
+                                    );
+
+                                if (context.mounted) Navigator.pop(context);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF06B6D4),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(18),
+                                ),
+                              ),
+                              child: const Text(
+                                'Save',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -0.1,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
           ),
@@ -397,6 +408,8 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 }
+
+// -------------------- Profile UI tiles --------------------
 
 class _ProfileField extends StatelessWidget {
   final String label;
@@ -445,7 +458,6 @@ class _GlassTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const radius = 18.0;
-
     return ClipRRect(
       borderRadius: BorderRadius.circular(radius),
       child: BackdropFilter(
@@ -493,127 +505,152 @@ class _PrimaryButton extends StatelessWidget {
   }
 }
 
-// ✅ Label outside + TextField inside (NO floating labels)
-class _LabeledTextField extends StatelessWidget {
+// -------------------- Edit Profile (single-layer fields like City) --------------------
+
+class _FlatField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
   final String hint;
   final TextInputType? keyboardType;
+  final int maxLines;
 
-  const _LabeledTextField({
+  const _FlatField({
     required this.label,
     required this.controller,
     required this.hint,
     this.keyboardType,
+    required this.maxLines,
   });
+
+  static const _inputBg = Color(0xFF141C2A);
+  static const _border = Color.fromRGBO(255, 255, 255, 0.10);
 
   @override
   Widget build(BuildContext context) {
-    return _GlassTile(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.65),
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
+    // Important: this removes any “inner box” effect
+    // by keeping ONLY ONE Container background and forcing the TextField
+    // decoration to be fully transparent with no fill/borders.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.70),
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.1,
           ),
-          const SizedBox(height: 10),
-          TextField(
+        ),
+        const SizedBox(height: 6),
+        Container(
+          decoration: BoxDecoration(
+            color: _inputBg,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: _border),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: TextField(
             controller: controller,
             keyboardType: keyboardType,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+            maxLines: maxLines,
+            cursorColor: Colors.white,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.1,
+            ),
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: TextStyle(color: Colors.white.withOpacity(0.35)),
-              filled: true,
-              fillColor: const Color.fromRGBO(255, 255, 255, 0.06),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.10)),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              errorBorder: InputBorder.none,
+              focusedErrorBorder: InputBorder.none,
+              isDense: true,
+              // ✅ No “inner box” / no filled overlay
+              filled: false,
+              fillColor: Colors.transparent,
+              contentPadding: EdgeInsets.symmetric(
+                vertical: maxLines > 1 ? 16 : 14,
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.10)),
-              ),
-              focusedBorder: const OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(14)),
-                borderSide: BorderSide(color: Color(0xFF06B6D4)),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class _LabeledCityDropdown extends StatelessWidget {
+class _FlatCity extends StatelessWidget {
   final String label;
   final String? value;
   final List<String> items;
   final ValueChanged<String?> onChanged;
 
-  const _LabeledCityDropdown({
+  const _FlatCity({
     required this.label,
     required this.value,
     required this.items,
     required this.onChanged,
   });
 
+  static const _inputBg = Color(0xFF141C2A);
+  static const _border = Color.fromRGBO(255, 255, 255, 0.10);
+
   @override
   Widget build(BuildContext context) {
-    return _GlassTile(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.65),
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.white.withOpacity(0.70),
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.1,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Container(
+          decoration: BoxDecoration(
+            color: _inputBg,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: _border),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              isExpanded: true,
+              dropdownColor: const Color(0xFF0B1220),
+              icon: const Icon(Icons.expand_more, color: Colors.white70),
+              hint: Text(
+                'Select your city',
+                style: TextStyle(color: Colors.white.withOpacity(0.35)),
+              ),
+              items: items
+                  .map(
+                    (c) => DropdownMenuItem<String>(
+                      value: c,
+                      child: Text(
+                        c,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: onChanged,
             ),
           ),
-          const SizedBox(height: 10),
-          DropdownButtonFormField<String>(
-            value: value,
-            dropdownColor: const Color(0xFF0B1220),
-            items: items
-                .map(
-                  (c) => DropdownMenuItem(
-                    value: c,
-                    child: Text(c, style: const TextStyle(color: Colors.white)),
-                  ),
-                )
-                .toList(),
-            onChanged: onChanged,
-            decoration: InputDecoration(
-              hintText: 'Select your city',
-              hintStyle: TextStyle(color: Colors.white.withOpacity(0.35)),
-              filled: true,
-              fillColor: const Color.fromRGBO(255, 255, 255, 0.06),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.10)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide(color: Colors.white.withOpacity(0.10)),
-              ),
-              focusedBorder: const OutlineInputBorder(
-                borderRadius: BorderRadius.all(Radius.circular(14)),
-                borderSide: BorderSide(color: Color(0xFF06B6D4)),
-              ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
