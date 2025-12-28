@@ -33,6 +33,9 @@ class _Debouncer {
   void dispose() => _disposed = true;
 }
 
+// ✅ safe string helper (fix warnings)
+String _s(dynamic v) => (v == null) ? '' : v.toString();
+
 class DealsScreen extends ConsumerStatefulWidget {
   const DealsScreen({super.key});
 
@@ -235,21 +238,28 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                       final d = state.items[i];
                                       final r = d.restaurant ?? {};
 
-                                      final restaurantName =
-                                          (r['name'] as String?)
-                                                  ?.trim()
-                                                  .isNotEmpty ==
-                                              true
-                                          ? (r['name'] as String).trim()
+                                      final restaurantName = _s(r['name']).trim().isNotEmpty
+                                          ? _s(r['name']).trim()
                                           : 'Restaurant';
 
-                                      final phone =
-                                          (r['phone'] as String?) ?? '';
-                                      final whatsapp =
-                                          (r['whatsapp'] as String?) ?? '';
+                                      final phone = _s(r['phone']).trim();
+                                      final whatsapp = _s(r['whatsapp']).trim();
 
                                       final rs = _tryInt(d.priceRs);
                                       final mighty = _tryInt(d.priceMighty);
+
+                                      // ✅ FIX WARNINGS: safe strings
+                                      final dealTitleSafe =
+                                          _s(d.title).trim().isEmpty
+                                              ? 'Deal'
+                                              : _s(d.title).trim();
+
+                                      final descSafe = _s(d.description).trim();
+                                      final catSafe = _s(d.category).trim();
+
+                                      final subLineSafe = descSafe.isEmpty
+                                          ? catSafe
+                                          : descSafe;
 
                                       return Padding(
                                         padding: const EdgeInsets.only(
@@ -257,16 +267,8 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                         ),
                                         child: DealCardCleanFinal(
                                           restaurantName: restaurantName,
-                                          dealTitle:
-                                              (d.title ?? '').trim().isEmpty
-                                                  ? 'Deal'
-                                                  : d.title,
-                                          subLine:
-                                              (d.description ?? '')
-                                                      .trim()
-                                                      .isEmpty
-                                                  ? (d.category ?? '')
-                                                  : (d.description ?? ''),
+                                          dealTitle: dealTitleSafe,
+                                          subLine: subLineSafe,
                                           priceRs: rs,
                                           mightyAmount: mighty,
                                           onTap: () {
@@ -279,13 +281,12 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                               ),
                                             );
                                           },
-                                          onCall: phone.trim().isEmpty
+                                          onCall: phone.isEmpty
                                               ? null
                                               : () => _launchTel(phone),
-                                          onWhatsapp: whatsapp.trim().isEmpty
+                                          onWhatsapp: whatsapp.isEmpty
                                               ? null
-                                              : () =>
-                                                  _launchWhatsApp(whatsapp),
+                                              : () => _launchWhatsApp(whatsapp),
                                           onPay: () {
                                             ScaffoldMessenger.of(context)
                                                 .showSnackBar(
@@ -346,7 +347,16 @@ class _PlainDarkBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ColoredBox(color: Color(0xFF050A14));
+    // slight premium gradient (still dark navy)
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF050A14), Color(0xFF02040A)],
+        ),
+      ),
+    );
   }
 }
 
@@ -420,7 +430,6 @@ class _PremiumSearchBar extends StatelessWidget {
   }
 }
 
-// ✅ FIXED CHIP: no outer ring, no weird outline, only inner fill
 class _FilterChipPill extends StatelessWidget {
   const _FilterChipPill({
     required this.text,
@@ -440,26 +449,20 @@ class _FilterChipPill extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       borderRadius: BorderRadius.circular(999),
-      clipBehavior: Clip.antiAlias, // ✅ clip glow/splash inside
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(999),
-
-        // ✅ remove weird outside ring
         splashColor: Colors.transparent,
         highlightColor: Colors.transparent,
-
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
-
-            // ✅ Selected fill stays (best part)
             gradient: selected
                 ? const LinearGradient(colors: [kAccentA, kAccentB])
                 : null,
-
             color: selected ? null : Colors.transparent,
             border: Border.all(color: borderColor, width: 1),
           ),
@@ -478,7 +481,7 @@ class _FilterChipPill extends StatelessWidget {
 }
 
 // =======================================================
-// Deal Card (same best)
+// Deal Card (Rs show OR ---) ✅
 // =======================================================
 
 class DealCardCleanFinal extends StatelessWidget {
@@ -507,6 +510,10 @@ class DealCardCleanFinal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Rs display logic (null OR 0 => ---)
+    final rsText =
+        (priceRs != null && priceRs! > 0) ? 'Rs $priceRs' : '— — —';
+
     return RepaintBoundary(
       child: InkWell(
         borderRadius: BorderRadius.circular(22),
@@ -585,7 +592,7 @@ class DealCardCleanFinal extends StatelessWidget {
                   Row(
                     children: [
                       Text(
-                        priceRs == null ? '— — —' : 'Rs $priceRs',
+                        rsText,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 22,
@@ -595,9 +602,9 @@ class DealCardCleanFinal extends StatelessWidget {
                       ),
                       const SizedBox(width: 10),
                       _MightyCapsuleSimple(
-                        text: mightyAmount == null
-                            ? 'Mighty Only'
-                            : '$mightyAmount Mighty',
+                        text: (mightyAmount != null && mightyAmount! > 0)
+                            ? '$mightyAmount Mighty'
+                            : 'Mighty Only',
                       ),
                     ],
                   ),

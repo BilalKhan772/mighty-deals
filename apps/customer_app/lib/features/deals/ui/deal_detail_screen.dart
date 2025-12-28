@@ -12,6 +12,9 @@ const Color kDeepNavy = Color(0xFF01203D);
 const Color kAccentA = Color(0xFF10B7C7);
 const Color kAccentB = Color(0xFF0B7C9D);
 
+// ✅ safe string helper (fix warnings)
+String _s(dynamic v) => (v == null) ? '' : v.toString();
+
 class DealDetailScreen extends ConsumerWidget {
   final String dealId;
   const DealDetailScreen({super.key, required this.dealId});
@@ -41,17 +44,23 @@ class DealDetailScreen extends ConsumerWidget {
                 );
 
                 final r = d.restaurant ?? {};
-                final restaurantName = (r['name'] as String?) ?? 'Restaurant';
-                final phone = (r['phone'] as String?) ?? '';
-                final whatsapp = (r['whatsapp'] as String?) ?? '';
+                final restaurantName =
+                    _s(r['name']).trim().isEmpty ? 'Restaurant' : _s(r['name']).trim();
 
-                final details = _bulletLines(d.description ?? '');
+                final phone = _s(r['phone']).trim();
+                final whatsapp = _s(r['whatsapp']).trim();
+
+                final details = _bulletLines(_s(d.description));
 
                 final rs = _tryInt(d.priceRs);
                 final mighty = _tryInt(d.priceMighty);
 
                 final rsText = (rs != null && rs > 0) ? 'Rs $rs' : '— — —';
-                final mightyText = mighty == null ? 'Mighty Only' : '$mighty Mighty';
+                final mightyText =
+                    (mighty != null && mighty > 0) ? '$mighty Mighty' : 'Mighty Only';
+
+                final dealTitleSafe =
+                    _s(d.title).trim().isEmpty ? 'Deal' : _s(d.title).trim();
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,7 +100,7 @@ class DealDetailScreen extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              (d.title ?? '').trim().isEmpty ? 'Deal' : d.title,
+                              dealTitleSafe,
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 30,
@@ -164,12 +173,14 @@ class DealDetailScreen extends ConsumerWidget {
                             Row(
                               children: [
                                 _GlassIconButton(
-                                  onTap: phone.trim().isEmpty ? null : () => _launchTel(phone),
+                                  onTap: phone.isEmpty ? null : () => _launchTel(phone),
                                   icon: Icons.call,
                                 ),
                                 const SizedBox(width: 10),
                                 _GlassIconButton(
-                                  onTap: whatsapp.trim().isEmpty ? null : () => _launchWhatsApp(whatsapp),
+                                  onTap: whatsapp.isEmpty
+                                      ? null
+                                      : () => _launchWhatsApp(whatsapp),
                                   iconWidget: const FaIcon(
                                     FontAwesomeIcons.whatsapp,
                                     size: 20,
@@ -181,7 +192,9 @@ class DealDetailScreen extends ConsumerWidget {
                                   onTap: () {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text('Pay with Mighty will be wired to Edge Function next.'),
+                                        content: Text(
+                                          'Pay with Mighty will be wired to Edge Function next.',
+                                        ),
                                       ),
                                     );
                                   },
@@ -224,7 +237,9 @@ class DealDetailScreen extends ConsumerWidget {
         .toList();
 
     if (parts.length > 1) {
-      return parts.map((e) => e.startsWith('•') ? e.substring(1).trim() : e).toList();
+      return parts
+          .map((e) => e.startsWith('•') ? e.substring(1).trim() : e)
+          .toList();
     }
     return [t];
   }
@@ -249,7 +264,16 @@ class _PlainDarkBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const ColoredBox(color: Color(0xFF050A14));
+    // same feel as Deals screen
+    return const DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF050A14), Color(0xFF02040A)],
+        ),
+      ),
+    );
   }
 }
 
