@@ -2,9 +2,15 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../logic/deals_controller.dart';
+
+// ✅ Same constants as DealsScreen
+const Color kDeepNavy = Color(0xFF01203D);
+const Color kAccentA = Color(0xFF10B7C7);
+const Color kAccentB = Color(0xFF0B7C9D);
 
 class DealDetailScreen extends ConsumerWidget {
   final String dealId;
@@ -18,7 +24,7 @@ class DealDetailScreen extends ConsumerWidget {
       backgroundColor: const Color(0xFF050A14),
       body: Stack(
         children: [
-          const _DetailBackground(),
+          const _PlainDarkBackground(),
           SafeArea(
             child: dealsStateAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -39,13 +45,18 @@ class DealDetailScreen extends ConsumerWidget {
                 final phone = (r['phone'] as String?) ?? '';
                 final whatsapp = (r['whatsapp'] as String?) ?? '';
 
-                final priceText = _priceText(d);
                 final details = _bulletLines(d.description ?? '');
+
+                final rs = _tryInt(d.priceRs);
+                final mighty = _tryInt(d.priceMighty);
+
+                final rsText = (rs != null && rs > 0) ? 'Rs $rs' : '— — —';
+                final mightyText = mighty == null ? 'Mighty Only' : '$mighty Mighty';
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // top bar
+                    // Top bar
                     Padding(
                       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                       child: Row(
@@ -72,124 +83,118 @@ class DealDetailScreen extends ConsumerWidget {
                       ),
                     ),
 
-                    Expanded(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(18, 6, 18, 22),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(18),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.06),
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(color: Colors.white.withOpacity(0.10)),
+                    // Card (same style as Deals card)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                      child: _DealsLikeCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              (d.title ?? '').trim().isEmpty ? 'Deal' : d.title,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 30,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.4,
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    d.title,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 30,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: -0.4,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
+                            ),
+                            const SizedBox(height: 8),
 
-                                  if (details.isNotEmpty) ...[
-                                    for (final line in details)
-                                      Padding(
-                                        padding: const EdgeInsets.only(bottom: 8),
-                                        child: Row(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              '• ',
-                                              style: TextStyle(
-                                                color: Colors.white.withOpacity(0.85),
-                                                fontSize: 18,
-                                                height: 1.2,
-                                              ),
-                                            ),
-                                            Expanded(
-                                              child: Text(
-                                                line,
-                                                style: TextStyle(
-                                                  color: Colors.white.withOpacity(0.75),
-                                                  fontSize: 16,
-                                                  height: 1.35,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
+                            if (details.isNotEmpty) ...[
+                              for (final line in details)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: 6),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '• ',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.85),
+                                          fontSize: 18,
+                                          height: 1.2,
                                         ),
                                       ),
-                                  ] else ...[
-                                    Text(
-                                      'Deal details will appear here.',
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.70),
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                  ],
-
-                                  const SizedBox(height: 16),
-
-                                  Text(
-                                    priceText,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 26,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-
-                                  const SizedBox(height: 18),
-
-                                  // actions row (call / whatsapp / pay)
-                                  Row(
-                                    children: [
-                                      _SquareActionButton(
-                                        icon: Icons.call,
-                                        onTap: phone.isEmpty
-                                            ? null
-                                            : () => _launchTel(phone),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      _SquareActionButton(
-                                        icon: Icons.chat_bubble_rounded,
-                                        onTap: whatsapp.isEmpty
-                                            ? null
-                                            : () => _launchWhatsApp(whatsapp),
-                                      ),
-                                      const SizedBox(width: 12),
                                       Expanded(
-                                        child: _PayButtonLarge(
-                                          onTap: () {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  'Pay with Mighty will be added via Edge Function next.',
-                                                ),
-                                              ),
-                                            );
-                                          },
+                                        child: Text(
+                                          line,
+                                          style: TextStyle(
+                                            color: Colors.white.withOpacity(0.75),
+                                            fontSize: 16,
+                                            height: 1.35,
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                ],
+                                ),
+                            ] else ...[
+                              Text(
+                                'Deal details will appear here.',
+                                style: TextStyle(
+                                  color: Colors.white.withOpacity(0.70),
+                                  fontSize: 16,
+                                ),
                               ),
+                            ],
+
+                            const SizedBox(height: 12),
+
+                            // Rs + Mighty (same as cards)
+                            Row(
+                              children: [
+                                Text(
+                                  rsText,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -0.3,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                _MightyCapsuleSimple(text: mightyText),
+                              ],
                             ),
-                          ),
+
+                            const SizedBox(height: 12),
+
+                            // Call + WhatsApp + Pay
+                            Row(
+                              children: [
+                                _GlassIconButton(
+                                  onTap: phone.trim().isEmpty ? null : () => _launchTel(phone),
+                                  icon: Icons.call,
+                                ),
+                                const SizedBox(width: 10),
+                                _GlassIconButton(
+                                  onTap: whatsapp.trim().isEmpty ? null : () => _launchWhatsApp(whatsapp),
+                                  iconWidget: const FaIcon(
+                                    FontAwesomeIcons.whatsapp,
+                                    size: 20,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                                const Spacer(),
+                                _PayWithMightyButton(
+                                  onTap: () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Pay with Mighty will be wired to Edge Function next.'),
+                                      ),
+                                    );
+                                  },
+                                  width: 170,
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
                     ),
+
+                    const Expanded(child: SizedBox()),
                   ],
                 );
               },
@@ -200,32 +205,34 @@ class DealDetailScreen extends ConsumerWidget {
     );
   }
 
-  static String _priceText(dynamic d) {
-    final rs = (d.priceRs as int?) ?? (d.priceRs as num?)?.toInt();
-    if (rs != null && rs > 0) return 'Rs $rs';
-    return '${d.priceMighty} Mighty';
+  static int? _tryInt(dynamic v) {
+    if (v == null) return null;
+    if (v is int) return v;
+    if (v is num) return v.toInt();
+    if (v is String) return int.tryParse(v);
+    return null;
   }
 
   static List<String> _bulletLines(String raw) {
     final t = raw.trim();
     if (t.isEmpty) return [];
-
-    // support: lines / commas / bullets
     final cleaned = t.replaceAll('•', '\n•');
-    final parts = cleaned.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+    final parts = cleaned
+        .split('\n')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
     if (parts.length > 1) {
       return parts.map((e) => e.startsWith('•') ? e.substring(1).trim() : e).toList();
     }
-    // single line
     return [t];
   }
 
   static Future<void> _launchTel(String phone) async {
     final cleaned = phone.replaceAll(RegExp(r'[^0-9+]'), '');
     final uri = Uri.parse('tel:$cleaned');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-    }
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
   }
 
   static Future<void> _launchWhatsApp(String number) async {
@@ -237,78 +244,139 @@ class DealDetailScreen extends ConsumerWidget {
   }
 }
 
-class _DetailBackground extends StatelessWidget {
-  const _DetailBackground();
+class _PlainDarkBackground extends StatelessWidget {
+  const _PlainDarkBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return const ColoredBox(color: Color(0xFF050A14));
+  }
+}
+
+class _DealsLikeCard extends StatelessWidget {
+  const _DealsLikeCard({required this.child});
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(22),
+        clipBehavior: Clip.antiAlias,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(22),
+              color: kDeepNavy.withOpacity(0.88),
+              border: Border.all(color: Colors.white.withOpacity(0.10)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.30),
+                  blurRadius: 26,
+                  offset: const Offset(0, 16),
+                ),
+              ],
+            ),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MightyCapsuleSimple extends StatelessWidget {
+  const _MightyCapsuleSimple({required this.text});
+  final String text;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF08162B),
-            Color(0xFF050A14),
-          ],
+      height: 34,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: const Color(0xFF0FAFC0),
+        border: Border.all(color: Colors.white.withOpacity(0.10)),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w900,
+          fontSize: 12.5,
+          letterSpacing: 0.1,
         ),
       ),
     );
   }
 }
 
-class _SquareActionButton extends StatelessWidget {
-  const _SquareActionButton({required this.icon, required this.onTap});
-  final IconData icon;
+class _GlassIconButton extends StatelessWidget {
+  const _GlassIconButton({required this.onTap, this.icon, this.iconWidget});
+
   final VoidCallback? onTap;
+  final IconData? icon;
+  final Widget? iconWidget;
 
   @override
   Widget build(BuildContext context) {
     final disabled = onTap == null;
+
     return InkWell(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(16),
       onTap: onTap,
       child: Container(
-        width: 56,
-        height: 48,
+        width: 54,
+        height: 46,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           color: Colors.white.withOpacity(disabled ? 0.03 : 0.08),
           border: Border.all(color: Colors.white.withOpacity(0.10)),
         ),
-        child: Icon(
-          icon,
-          color: Colors.white.withOpacity(disabled ? 0.25 : 0.90),
+        child: Center(
+          child: iconWidget ??
+              Icon(
+                icon,
+                size: 22,
+                color: Colors.white.withOpacity(disabled ? 0.25 : 0.92),
+              ),
         ),
       ),
     );
   }
 }
 
-class _PayButtonLarge extends StatelessWidget {
-  const _PayButtonLarge({required this.onTap});
+class _PayWithMightyButton extends StatelessWidget {
+  const _PayWithMightyButton({required this.onTap, this.width = 180});
+
   final VoidCallback onTap;
+  final double width;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(999),
       onTap: onTap,
       child: Container(
-        height: 48,
+        height: 46,
+        width: width,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          gradient: const LinearGradient(
-            colors: [Color(0xFF0CA9B8), Color(0xFF0B7C9D)],
-          ),
+          borderRadius: BorderRadius.circular(999),
+          gradient: const LinearGradient(colors: [kAccentA, kAccentB]),
         ),
         child: const Text(
           'Pay with Mighty',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w900,
-            fontSize: 16,
+            fontSize: 15.5,
+            letterSpacing: -0.2,
           ),
         ),
       ),
