@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../features/auth/ui/login_screen.dart';
 import '../../features/auth/ui/signup_screen.dart';
 import '../../features/home/ui/home_shell.dart';
+import '../../features/deals/ui/restaurant_view_screen.dart';
 
 import 'route_names.dart';
 
@@ -30,6 +31,15 @@ final appRouter = GoRouter(
     GoRoute(
       path: RouteNames.home,
       builder: (_, __) => const HomeShell(),
+    ),
+
+    // ✅ Restaurant profile route
+    GoRoute(
+      path: '${RouteNames.restaurant}/:id',
+      builder: (context, state) {
+        final id = state.pathParameters['id'] ?? '';
+        return RestaurantViewScreen(restaurantId: id);
+      },
     ),
   ],
 );

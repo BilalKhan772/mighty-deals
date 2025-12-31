@@ -3,8 +3,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:go_router/go_router.dart'; // ✅ add
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/routing/route_names.dart'; // ✅ add
 import '../logic/deals_controller.dart';
 import 'deal_detail_screen.dart';
 
@@ -238,9 +240,13 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                       final d = state.items[i];
                                       final r = d.restaurant ?? {};
 
-                                      final restaurantName = _s(r['name']).trim().isNotEmpty
-                                          ? _s(r['name']).trim()
-                                          : 'Restaurant';
+                                      final restaurantName =
+                                          _s(r['name']).trim().isNotEmpty
+                                              ? _s(r['name']).trim()
+                                              : 'Restaurant';
+
+                                      final restaurantId =
+                                          _s(r['id']).trim(); // ✅ important
 
                                       final phone = _s(r['phone']).trim();
                                       final whatsapp = _s(r['whatsapp']).trim();
@@ -248,7 +254,6 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                       final rs = _tryInt(d.priceRs);
                                       final mighty = _tryInt(d.priceMighty);
 
-                                      // ✅ FIX WARNINGS: safe strings
                                       final dealTitleSafe =
                                           _s(d.title).trim().isEmpty
                                               ? 'Deal'
@@ -281,6 +286,13 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                               ),
                                             );
                                           },
+                                          onRestaurantTap: restaurantId.isEmpty
+                                              ? null
+                                              : () {
+                                                  context.push(
+                                                    '${RouteNames.restaurant}/$restaurantId',
+                                                  );
+                                                },
                                           onCall: phone.isEmpty
                                               ? null
                                               : () => _launchTel(phone),
@@ -347,7 +359,6 @@ class _PlainDarkBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // slight premium gradient (still dark navy)
     return const DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -481,7 +492,7 @@ class _FilterChipPill extends StatelessWidget {
 }
 
 // =======================================================
-// Deal Card (Rs show OR ---) ✅
+// Deal Card
 // =======================================================
 
 class DealCardCleanFinal extends StatelessWidget {
@@ -496,6 +507,7 @@ class DealCardCleanFinal extends StatelessWidget {
     required this.onPay,
     this.onCall,
     this.onWhatsapp,
+    this.onRestaurantTap, // ✅ NEW
   });
 
   final String restaurantName;
@@ -507,10 +519,10 @@ class DealCardCleanFinal extends StatelessWidget {
   final VoidCallback onPay;
   final VoidCallback? onCall;
   final VoidCallback? onWhatsapp;
+  final VoidCallback? onRestaurantTap; // ✅ NEW
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Rs display logic (null OR 0 => ---)
     final rsText =
         (priceRs != null && priceRs! > 0) ? 'Rs $priceRs' : '— — —';
 
@@ -544,7 +556,14 @@ class DealCardCleanFinal extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      _RestaurantAvatar(letter: _firstLetter(restaurantName)),
+                      // ✅ Avatar clickable
+                      InkWell(
+                        borderRadius: BorderRadius.circular(999),
+                        onTap: onRestaurantTap,
+                        child: _RestaurantAvatar(
+                          letter: _firstLetter(restaurantName),
+                        ),
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(

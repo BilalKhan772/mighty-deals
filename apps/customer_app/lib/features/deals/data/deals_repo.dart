@@ -19,4 +19,11 @@ class DealsRepo {
       offset: offset,
     );
   }
+
+  // ✅ NEW
+  Future<List<DealModel>> listDealsByRestaurant({
+    required String restaurantId,
+  }) {
+    return _sb.listDealsByRestaurant(restaurantId: restaurantId);
+  }
 }
