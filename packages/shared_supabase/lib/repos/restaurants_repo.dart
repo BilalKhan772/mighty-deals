@@ -15,11 +15,11 @@ class RestaurantsRepo {
   }
 
   Future<List<Map<String, dynamic>>> listMenuItems(String restaurantId) async {
-    // ✅ FIX: menu_items table me is_deleted column exist nahi kar raha
-    // is liye hum is filter ko remove kar rahe hain.
+    // ✅ menu_items table me is_deleted column nahi hai -> remove filter
+    // ✅ price_mighty bhi table me nahi -> remove from select
     final rows = await SB.client
         .from(Tables.menuItems)
-        .select('id, restaurant_id, name, price_rs, price_mighty, is_active')
+        .select('id, restaurant_id, name, price_rs, is_active, created_at')
         .eq('restaurant_id', restaurantId)
         .eq('is_active', true)
         .order('created_at', ascending: false);

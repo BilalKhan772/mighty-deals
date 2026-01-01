@@ -17,6 +17,9 @@ const Color kAccentB = Color(0xFF0B7C9D);
 
 String _s(dynamic v) => (v == null) ? '' : v.toString();
 
+// ✅ 1 Mighty = 3 Rs
+const int kRsPerMighty = 3;
+
 // ---------------- Providers ----------------
 final restaurantsRepoProvider =
     Provider<RestaurantsRepo>((ref) => RestaurantsRepo());
@@ -130,14 +133,13 @@ class _Body extends ConsumerWidget {
           ),
         ),
 
-        // ✅ Header (FIXED: center aligned like your reference)
+        // ✅ Header (center aligned)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 18),
           child: SizedBox(
-            width: double.infinity, // ✅ forces full width so Center works
+            width: double.infinity,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center, // ✅ key
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Center(child: _RestaurantAvatar(photoUrl: restaurant.photoUrl)),
                 const SizedBox(height: 14),
@@ -194,9 +196,8 @@ class _Body extends ConsumerWidget {
                   ),
                   const SizedBox(width: 12),
                   _GlassIconButton(
-                    onTap: whatsapp.isEmpty
-                        ? null
-                        : () => _launchWhatsApp(whatsapp),
+                    onTap:
+                        whatsapp.isEmpty ? null : () => _launchWhatsApp(whatsapp),
                     iconWidget: const FaIcon(
                       FontAwesomeIcons.whatsapp,
                       size: 20,
@@ -248,7 +249,7 @@ class _Body extends ConsumerWidget {
 }
 
 // =======================================================
-// MENU TAB (✅ Rs + ✅ Mighty Capsule + Pay with Mighty)
+// MENU TAB (✅ Rs + ✅ Mighty Capsule (auto) + Pay with Mighty)
 // =======================================================
 
 class _MenuTab extends ConsumerWidget {
@@ -264,14 +265,18 @@ class _MenuTab extends ConsumerWidget {
       child: menuAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-          child:
-              Text(e.toString(), style: const TextStyle(color: Colors.white70)),
+          child: Text(
+            e.toString(),
+            style: const TextStyle(color: Colors.white70),
+          ),
         ),
         data: (items) {
           if (items.isEmpty) {
             return const Center(
-              child:
-                  Text('No menu items', style: TextStyle(color: Colors.white70)),
+              child: Text(
+                'No menu items',
+                style: TextStyle(color: Colors.white70),
+              ),
             );
           }
 
@@ -283,7 +288,9 @@ class _MenuTab extends ConsumerWidget {
               final name = _s(it['name']).trim();
 
               final priceRs = _tryInt(it['price_rs']);
-              final priceMighty = _tryInt(it['price_mighty']);
+
+              // ✅ Mighty auto calculate: ceil(rs/3)
+              final priceMighty = _mightyFromRs(priceRs);
 
               final rsText =
                   (priceRs != null && priceRs > 0) ? 'Rs $priceRs' : '— — —';
@@ -325,9 +332,8 @@ class _MenuTab extends ConsumerWidget {
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text(
-                                  'Menu Pay with Mighty (Edge Function later)',
-                                ),
+                                content:
+                                    Text('Menu Pay with Mighty (Edge Function later)'),
                               ),
                             );
                           },
@@ -364,8 +370,10 @@ class _DealsTab extends ConsumerWidget {
       child: dealsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-          child:
-              Text(e.toString(), style: const TextStyle(color: Colors.white70)),
+          child: Text(
+            e.toString(),
+            style: const TextStyle(color: Colors.white70),
+          ),
         ),
         data: (deals) {
           if (deals.isEmpty) {
@@ -413,7 +421,9 @@ class _DealsTab extends ConsumerWidget {
                         if (_s(d.tag).trim().isNotEmpty)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 6),
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: const Color(0xFFE53935),
                               borderRadius: BorderRadius.circular(999),
@@ -458,9 +468,7 @@ class _DealsTab extends ConsumerWidget {
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text(
-                                  'Pay with Mighty (Edge Function) next step',
-                                ),
+                                content: Text('Pay with Mighty (Edge Function) next step'),
                               ),
                             );
                           },
@@ -695,6 +703,12 @@ int? _tryInt(dynamic v) {
   if (v is num) return v.toInt();
   if (v is String) return int.tryParse(v);
   return null;
+}
+
+// ✅ ceil division: ceil(rs/3)
+int? _mightyFromRs(int? rs) {
+  if (rs == null || rs <= 0) return null;
+  return ((rs + (kRsPerMighty - 1)) / kRsPerMighty).floor();
 }
 
 Future<void> _launchTel(String phone) async {
