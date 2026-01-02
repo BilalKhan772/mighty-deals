@@ -772,7 +772,7 @@ class _PayWithMightyButton extends StatelessWidget {
           gradient: const LinearGradient(colors: [kAccentA, kAccentB]),
         ),
         child: const Text(
-          'Pay with Mighty',
+          'Redeem with Mighty',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w900,

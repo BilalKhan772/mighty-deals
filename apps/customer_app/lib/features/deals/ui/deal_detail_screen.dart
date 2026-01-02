@@ -44,8 +44,9 @@ class DealDetailScreen extends ConsumerWidget {
                 );
 
                 final r = d.restaurant ?? {};
-                final restaurantName =
-                    _s(r['name']).trim().isEmpty ? 'Restaurant' : _s(r['name']).trim();
+                final restaurantName = _s(r['name']).trim().isEmpty
+                    ? 'Restaurant'
+                    : _s(r['name']).trim();
 
                 final phone = _s(r['phone']).trim();
                 final whatsapp = _s(r['whatsapp']).trim();
@@ -56,8 +57,9 @@ class DealDetailScreen extends ConsumerWidget {
                 final mighty = _tryInt(d.priceMighty);
 
                 final rsText = (rs != null && rs > 0) ? 'Rs $rs' : '— — —';
-                final mightyText =
-                    (mighty != null && mighty > 0) ? '$mighty Mighty' : 'Mighty Only';
+                final mightyText = (mighty != null && mighty > 0)
+                    ? '$mighty Mighty'
+                    : 'Mighty Only';
 
                 final dealTitleSafe =
                     _s(d.title).trim().isEmpty ? 'Deal' : _s(d.title).trim();
@@ -72,7 +74,8 @@ class DealDetailScreen extends ConsumerWidget {
                         children: [
                           IconButton(
                             onPressed: () => Navigator.pop(context),
-                            icon: const Icon(Icons.arrow_back, color: Colors.white),
+                            icon:
+                                const Icon(Icons.arrow_back, color: Colors.white),
                           ),
                           const SizedBox(width: 4),
                           Expanded(
@@ -173,7 +176,9 @@ class DealDetailScreen extends ConsumerWidget {
                             Row(
                               children: [
                                 _GlassIconButton(
-                                  onTap: phone.isEmpty ? null : () => _launchTel(phone),
+                                  onTap: phone.isEmpty
+                                      ? null
+                                      : () => _launchTel(phone),
                                   icon: Icons.call,
                                 ),
                                 const SizedBox(width: 10),
@@ -395,7 +400,7 @@ class _PayWithMightyButton extends StatelessWidget {
           gradient: const LinearGradient(colors: [kAccentA, kAccentB]),
         ),
         child: const Text(
-          'Pay with Mighty',
+          'Redeem with Mighty',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w900,

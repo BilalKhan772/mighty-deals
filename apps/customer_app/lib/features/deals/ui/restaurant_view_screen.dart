@@ -249,7 +249,7 @@ class _Body extends ConsumerWidget {
 }
 
 // =======================================================
-// MENU TAB (✅ Rs + ✅ Mighty Capsule (auto) + Pay with Mighty)
+// MENU TAB (✅ Rs + ✅ Mighty Capsule (auto) + Redeem with Mighty)
 // =======================================================
 
 class _MenuTab extends ConsumerWidget {
@@ -332,8 +332,9 @@ class _MenuTab extends ConsumerWidget {
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content:
-                                    Text('Menu Pay with Mighty (Edge Function later)'),
+                                content: Text(
+                                  'Menu Pay with Mighty (Edge Function later)',
+                                ),
                               ),
                             );
                           },
@@ -468,7 +469,9 @@ class _DealsTab extends ConsumerWidget {
                           onTap: () {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Pay with Mighty (Edge Function) next step'),
+                                content: Text(
+                                  'Pay with Mighty (Edge Function) next step',
+                                ),
                               ),
                             );
                           },
@@ -635,7 +638,7 @@ class _PayWithMightyButton extends StatelessWidget {
           gradient: const LinearGradient(colors: [kAccentA, kAccentB]),
         ),
         child: const Text(
-          'Pay with Mighty',
+          'Redeem with Mighty',
           style: TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w900,
