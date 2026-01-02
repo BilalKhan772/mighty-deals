@@ -97,10 +97,17 @@ class WalletScreen extends ConsumerWidget {
                           final uri = Uri.parse(
                             'https://mighty-deal-support.netlify.app/',
                           );
-                          if (await canLaunchUrl(uri)) {
-                            await launchUrl(
-                              uri,
-                              mode: LaunchMode.externalApplication,
+
+                          final ok = await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalApplication,
+                          );
+
+                          if (!ok && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Could not open link'),
+                              ),
                             );
                           }
                         },
