@@ -1,6 +1,7 @@
 // apps/customer_app/lib/features/wallet/ui/wallet_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../logic/wallet_controller.dart';
 
@@ -92,23 +93,27 @@ class WalletScreen extends ConsumerWidget {
                     SizedBox(
                       height: 56,
                       child: _PurchaseButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('WhatsApp purchase flow later.'),
-                            ),
+                        onPressed: () async {
+                          final uri = Uri.parse(
+                            'https://mighty-deal-support.netlify.app/',
                           );
+                          if (await canLaunchUrl(uri)) {
+                            await launchUrl(
+                              uri,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          }
                         },
                       ),
                     ),
 
                     const SizedBox(height: 14),
 
-                    // ✅ Tabs row: Top Up | Orders
+                    // ✅ Tabs row: Activity | Redemption
                     Row(
                       children: [
                         _TabButton(
-                          label: 'Top Up',
+                          label: 'Activity',
                           active: tab == WalletTab.topUp,
                           onTap: () => ref
                               .read(walletTabProvider.notifier)
@@ -116,7 +121,7 @@ class WalletScreen extends ConsumerWidget {
                         ),
                         const SizedBox(width: 10),
                         _TabButton(
-                          label: 'Orders',
+                          label: 'Redemption',
                           active: tab == WalletTab.orders,
                           onTap: () => ref
                               .read(walletTabProvider.notifier)
@@ -518,7 +523,7 @@ class _PurchaseButton extends StatelessWidget {
               ),
               SizedBox(width: 10),
               Text(
-                'Purchase Mighty Coins',
+                'Get Mighty Points',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 17,
