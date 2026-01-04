@@ -3,12 +3,15 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/deals_repo.dart';
 import 'package:shared_supabase/shared_supabase.dart';
 import 'package:shared_models/deal_model.dart';
 import 'package:shared_models/restaurant_model.dart';
+
+import '../../wallet/logic/wallet_controller.dart';
 
 // ---------------- Colors ----------------
 const Color kDeepNavy = Color(0xFF01203D);
@@ -17,7 +20,7 @@ const Color kAccentB = Color(0xFF0B7C9D);
 
 String _s(dynamic v) => (v == null) ? '' : v.toString();
 
-// ✅ 1 Mighty = 3 Rs
+// ✅ 1 Mighty = 3 Rs (fallback only)
 const int kRsPerMighty = 3;
 
 // ---------------- Providers ----------------
@@ -133,7 +136,7 @@ class _Body extends ConsumerWidget {
           ),
         ),
 
-        // ✅ Header (center aligned)
+        // Header
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 18),
           child: SizedBox(
@@ -172,7 +175,7 @@ class _Body extends ConsumerWidget {
 
         const SizedBox(height: 18),
 
-        // Contact Info label + buttons
+        // Contact Info
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 18),
           child: Column(
@@ -249,7 +252,7 @@ class _Body extends ConsumerWidget {
 }
 
 // =======================================================
-// MENU TAB (✅ Rs + ✅ Mighty Capsule (auto) + Redeem with Mighty)
+// MENU TAB (✅ wallet balance checks + confirm + refresh)
 // =======================================================
 
 class _MenuTab extends ConsumerWidget {
@@ -259,6 +262,12 @@ class _MenuTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final menuAsync = ref.watch(restaurantMenuProvider(restaurantId));
+
+    final walletAsync = ref.watch(myWalletProvider);
+    final int walletBalance = walletAsync.maybeWhen(
+      data: (w) => w.balance,
+      orElse: () => 0,
+    );
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -285,12 +294,14 @@ class _MenuTab extends ConsumerWidget {
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (_, i) {
               final it = items[i];
-              final name = _s(it['name']).trim();
+              final menuItemId = _s(it['id']).trim();
 
+              final name = _s(it['name']).trim();
               final priceRs = _tryInt(it['price_rs']);
 
-              // ✅ Mighty auto calculate: ceil(rs/3)
-              final priceMighty = _mightyFromRs(priceRs);
+              final mightyDb = _tryInt(it['price_mighty']);
+              final mightyFallback = _mightyFromRs(priceRs);
+              final priceMighty = mightyDb ?? mightyFallback;
 
               final rsText =
                   (priceRs != null && priceRs > 0) ? 'Rs $priceRs' : '— — —';
@@ -298,6 +309,13 @@ class _MenuTab extends ConsumerWidget {
               final mightyText = (priceMighty != null && priceMighty > 0)
                   ? '$priceMighty Mighty'
                   : 'Mighty Only';
+
+              final int? requiredMighty =
+                  (priceMighty != null && priceMighty > 0) ? priceMighty : null;
+
+              final bool canPay = requiredMighty != null
+                  ? walletBalance >= requiredMighty
+                  : false;
 
               return _GlassCard(
                 child: Column(
@@ -329,15 +347,29 @@ class _MenuTab extends ConsumerWidget {
                         _MightyCapsuleSimple(text: mightyText),
                         const Spacer(),
                         _PayWithMightyButton(
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Menu Pay with Mighty (Edge Function later)',
-                                ),
-                              ),
-                            );
-                          },
+                          enabled: canPay,
+                          onTap: canPay
+                              ? () async {
+                                  if (menuItemId.isEmpty) {
+                                    _toast(context, 'Menu item invalid');
+                                    return;
+                                  }
+
+                                  final ok = await _confirmPay(
+                                    context,
+                                    title: 'Redeem Menu Item?',
+                                    message:
+                                        'This will deduct $requiredMighty Mighty from your wallet.',
+                                  );
+                                  if (!ok) return;
+
+                                  await _invokePay(
+                                    context,
+                                    ref,
+                                    body: {'menu_item_id': menuItemId},
+                                  );
+                                }
+                              : null,
                           width: 160,
                           height: 44,
                         ),
@@ -355,7 +387,7 @@ class _MenuTab extends ConsumerWidget {
 }
 
 // =======================================================
-// DEALS TAB
+// DEALS TAB (✅ wallet balance checks + confirm + refresh)
 // =======================================================
 
 class _DealsTab extends ConsumerWidget {
@@ -365,6 +397,12 @@ class _DealsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dealsAsync = ref.watch(restaurantDealsProvider(restaurantId));
+
+    final walletAsync = ref.watch(myWalletProvider);
+    final int walletBalance = walletAsync.maybeWhen(
+      data: (w) => w.balance,
+      orElse: () => 0,
+    );
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -398,8 +436,16 @@ class _DealsTab extends ConsumerWidget {
                   ? 'Rs ${d.priceRs}'
                   : '— — —';
 
-              final mightyText =
-                  (d.priceMighty > 0) ? '${d.priceMighty} Mighty' : 'Mighty Only';
+              final int? requiredMighty =
+                  (d.priceMighty > 0) ? d.priceMighty : null;
+
+              final mightyText = (requiredMighty != null)
+                  ? '${d.priceMighty} Mighty'
+                  : 'Mighty Only';
+
+              final bool canPay = requiredMighty != null
+                  ? walletBalance >= requiredMighty
+                  : false;
 
               return _GlassCard(
                 child: Column(
@@ -466,15 +512,29 @@ class _DealsTab extends ConsumerWidget {
                         _MightyCapsuleSimple(text: mightyText),
                         const Spacer(),
                         _PayWithMightyButton(
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text(
-                                  'Pay with Mighty (Edge Function) next step',
-                                ),
-                              ),
-                            );
-                          },
+                          enabled: canPay,
+                          onTap: canPay
+                              ? () async {
+                                  if (d.id.isEmpty) {
+                                    _toast(context, 'Deal invalid');
+                                    return;
+                                  }
+
+                                  final ok = await _confirmPay(
+                                    context,
+                                    title: 'Redeem Deal?',
+                                    message:
+                                        'This will deduct $requiredMighty Mighty from your wallet.',
+                                  );
+                                  if (!ok) return;
+
+                                  await _invokePay(
+                                    context,
+                                    ref,
+                                    body: {'deal_id': d.id},
+                                  );
+                                }
+                              : null,
                           width: 160,
                           height: 44,
                         ),
@@ -489,6 +549,111 @@ class _DealsTab extends ConsumerWidget {
       ),
     );
   }
+}
+
+// =======================================================
+// Edge Function caller + helpers
+// =======================================================
+
+Future<void> _invokePay(
+  BuildContext context,
+  WidgetRef ref, {
+  required Map<String, dynamic> body,
+}) async {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    final client = Supabase.instance.client;
+
+    final resp = await client.functions.invoke(
+      'create_order_and_deduct_coins',
+      body: body,
+    );
+
+    if (context.mounted) Navigator.pop(context);
+
+    final data = resp.data;
+
+    if (resp.status != 200) {
+      final err = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : 'Payment failed';
+
+      String msg;
+      switch (err) {
+        case 'PROFILE_INCOMPLETE':
+          msg = 'Please complete your profile first.';
+          break;
+        case 'INSUFFICIENT_BALANCE':
+          msg = 'Insufficient Mighty balance.';
+          break;
+        case 'DEAL_NOT_FOUND':
+          msg = 'Deal not found or inactive.';
+          break;
+        case 'MENU_ITEM_NOT_FOUND':
+          msg = 'Menu item not found or inactive.';
+          break;
+        case 'RESTAURANT_RESTRICTED':
+          msg = 'Restaurant is restricted.';
+          break;
+        case 'RESTAURANT_NOT_FOUND':
+          msg = 'Restaurant not found.';
+          break;
+        case 'INVALID_MIGHTY_PRICE':
+          msg = 'Invalid Mighty price for this item.';
+          break;
+        default:
+          msg = 'Error: $err';
+      }
+
+      _toast(context, msg);
+      return;
+    }
+
+    _toast(context, 'Order placed successfully ✅');
+
+    ref.invalidate(myWalletProvider);
+    ref.invalidate(myLedgerProvider);
+    ref.invalidate(myOrdersProvider);
+  } catch (e) {
+    if (context.mounted) Navigator.pop(context);
+    _toast(context, 'Error: $e');
+  }
+}
+
+void _toast(BuildContext context, String msg) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(msg)),
+  );
+}
+
+Future<bool> _confirmPay(
+  BuildContext context, {
+  required String title,
+  required String message,
+}) async {
+  final res = await showDialog<bool>(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Confirm'),
+        ),
+      ],
+    ),
+  );
+  return res ?? false;
 }
 
 // =======================================================
@@ -618,32 +783,37 @@ class _PayWithMightyButton extends StatelessWidget {
     required this.onTap,
     required this.width,
     required this.height,
+    required this.enabled,
   });
 
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final double width;
   final double height;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: onTap,
-      child: Container(
-        height: height,
-        width: width,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          gradient: const LinearGradient(colors: [kAccentA, kAccentB]),
-        ),
-        child: const Text(
-          'Redeem with Mighty',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w900,
-            fontSize: 14.5,
-            letterSpacing: -0.2,
+    return Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          height: height,
+          width: width,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            gradient: const LinearGradient(colors: [kAccentA, kAccentB]),
+          ),
+          child: const Text(
+            'Redeem with Mighty',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 14.5,
+              letterSpacing: -0.2,
+            ),
           ),
         ),
       ),
@@ -708,7 +878,7 @@ int? _tryInt(dynamic v) {
   return null;
 }
 
-// ✅ ceil division: ceil(rs/3)
+// ✅ ceil division: ceil(rs/3) (fallback only)
 int? _mightyFromRs(int? rs) {
   if (rs == null || rs <= 0) return null;
   return ((rs + (kRsPerMighty - 1)) / kRsPerMighty).floor();

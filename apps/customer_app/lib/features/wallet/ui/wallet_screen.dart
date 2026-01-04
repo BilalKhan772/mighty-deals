@@ -5,6 +5,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../logic/wallet_controller.dart';
 
+/// ✅ safe string helper (avoids map casting crashes)
+String _s(dynamic v) => (v == null) ? '' : v.toString();
+
 /// =======================
 /// Tabs state
 /// =======================
@@ -20,7 +23,7 @@ class WalletScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final walletAsync = ref.watch(myWalletProvider);
-    final ledgerAsync = ref.watch(myLedgerProvider);
+    // ✅ CHANGED: ledgerAsync removed from here (lazy-load)
     final tab = ref.watch(walletTabProvider);
 
     // ✅ UI start a bit higher
@@ -48,6 +51,7 @@ class WalletScreen extends ConsumerWidget {
             onPressed: () {
               ref.invalidate(myWalletProvider);
               ref.invalidate(myLedgerProvider);
+              ref.invalidate(myOrdersProvider);
             },
           ),
           const SizedBox(width: 6),
@@ -143,7 +147,8 @@ class WalletScreen extends ConsumerWidget {
                     Expanded(
                       child: _PanelContainer(
                         child: tab == WalletTab.topUp
-                            ? ledgerAsync.when(
+                            // ✅ CHANGED: ledgerAsync watch moved here (lazy-load)
+                            ? ref.watch(myLedgerProvider).when(
                                 loading: () => const Center(
                                   child: CircularProgressIndicator(),
                                 ),
@@ -157,7 +162,7 @@ class WalletScreen extends ConsumerWidget {
                                 data: (list) {
                                   if (list.isEmpty) {
                                     return const _EmptyState(
-                                      text: 'No top ups yet',
+                                      text: 'No activity yet',
                                     );
                                   }
                                   return ListView.separated(
@@ -170,8 +175,9 @@ class WalletScreen extends ConsumerWidget {
                                       final isPlus = x.amount >= 0;
                                       final amountText =
                                           '${isPlus ? '+' : ''}${x.amount}';
+
                                       return _HistoryRow(
-                                        title: x.type,
+                                        title: _prettyLedgerTitle(x.type),
                                         subtitle:
                                             _fmtPretty(x.createdAt.toLocal()),
                                         isPlus: isPlus,
@@ -181,7 +187,65 @@ class WalletScreen extends ConsumerWidget {
                                   );
                                 },
                               )
-                            : const _EmptyState(text: 'No orders yet'),
+                            : ref.watch(myOrdersProvider).when(
+                                loading: () => const Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                                error: (e, _) => Center(
+                                  child: Text(
+                                    e.toString(),
+                                    style: TextStyle(color: w(0.70)),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
+                                data: (orders) {
+                                  if (orders.isEmpty) {
+                                    return const _EmptyState(
+                                      text: 'No orders yet',
+                                    );
+                                  }
+
+                                  return ListView.separated(
+                                    padding: const EdgeInsets.all(14),
+                                    itemCount: orders.length,
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(height: 10),
+                                    itemBuilder: (_, i) {
+                                      final o = orders[i];
+
+                                      final rest = o.restaurant;
+                                      final deal = o.deal;
+                                      final menu = o.menuItem;
+
+                                      final restaurantName =
+                                          _s(rest?['name']).trim().isNotEmpty
+                                              ? _s(rest?['name']).trim()
+                                              : 'Restaurant';
+
+                                      final dealTitle =
+                                          _s(deal?['title']).trim().isNotEmpty
+                                              ? _s(deal?['title']).trim()
+                                              : 'Deal';
+
+                                      final menuName =
+                                          _s(menu?['name']).trim().isNotEmpty
+                                              ? _s(menu?['name']).trim()
+                                              : 'Menu Item';
+
+                                      final itemTitle =
+                                          (o.dealId != null) ? dealTitle : menuName;
+
+                                      return _HistoryRow(
+                                        title: '$restaurantName • $itemTitle',
+                                        subtitle:
+                                            _fmtPretty(o.createdAt.toLocal()),
+                                        isPlus: false,
+                                        amount: '-${o.coinsPaid}',
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
                       ),
                     ),
                   ],
@@ -207,6 +271,27 @@ class WalletScreen extends ConsumerWidget {
     final hh = two(dt.hour);
     final mm = two(dt.minute);
     return '$d $m $y • $hh:$mm';
+  }
+
+  static String _prettyLedgerTitle(String type) {
+    switch (type) {
+      case 'signup_bonus':
+        return 'Signup Bonus';
+      case 'topup':
+        return 'Top Up';
+      case 'admin_mint':
+        return 'Admin Top Up';
+      case 'purchase_deal':
+        return 'Deal Redeemed';
+      case 'purchase_menu':
+        return 'Menu Redeemed';
+      case 'refund':
+        return 'Refund';
+      case 'spin_entry':
+        return 'Spin Entry';
+      default:
+        return type;
+    }
   }
 }
 
@@ -547,7 +632,7 @@ class _PurchaseButton extends StatelessWidget {
 }
 
 /// =======================
-/// History Row (✅ FIXED TIME ALIGNMENT)
+/// History Row
 /// =======================
 class _HistoryRow extends StatelessWidget {
   final String title;
@@ -578,10 +663,8 @@ class _HistoryRow extends StatelessWidget {
         ),
       ),
       child: Row(
-        // ✅ IMPORTANT: start alignment (prevents weird vertical centering)
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // icon
           Container(
             height: 34,
             width: 34,
@@ -596,11 +679,8 @@ class _HistoryRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-
-          // title + time
           Expanded(
             child: Padding(
-              // ✅ small top padding so text block aligns perfectly with icon
               padding: const EdgeInsets.only(top: 2),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -618,8 +698,6 @@ class _HistoryRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-
-                  // ✅ Lift date slightly so it doesn't look "too low"
                   Transform.translate(
                     offset: const Offset(0, -1.5),
                     child: Text(
@@ -638,10 +716,7 @@ class _HistoryRow extends StatelessWidget {
               ),
             ),
           ),
-
           const SizedBox(width: 10),
-
-          // amount
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(

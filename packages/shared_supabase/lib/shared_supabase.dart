@@ -8,3 +8,6 @@ export 'repos/profile_repo.dart';
 export 'repos/deals_repo.dart';
 export 'repos/restaurants_repo.dart';
 export 'repos/wallet_repo.dart';
+
+// ✅ ADD THIS
+export 'repos/orders_repo.dart';

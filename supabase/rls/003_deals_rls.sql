@@ -1,20 +1,12 @@
--- 003_deals_rls.sql
 alter table public.deals enable row level security;
 
--- Public can read active deals
+-- ✅ Public can read active deals
+-- ❌ removed restaurants exists() to avoid recursion
 drop policy if exists "deals_public_select_active" on public.deals;
 create policy "deals_public_select_active"
 on public.deals
 for select
-using (
-  is_active = true
-  and exists (
-    select 1 from public.restaurants r
-    where r.id = deals.restaurant_id
-      and r.is_deleted = false
-      and r.is_restricted = false
-  )
-);
+using (is_active = true);
 
 -- Restaurant owner can CRUD only their deals (if not restricted/deleted)
 drop policy if exists "deals_owner_insert" on public.deals;

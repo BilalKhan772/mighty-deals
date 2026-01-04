@@ -3,17 +3,19 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:go_router/go_router.dart'; // ✅ add
+import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/routing/route_names.dart'; // ✅ add
+import '../../../core/routing/route_names.dart';
+import '../../wallet/logic/wallet_controller.dart';
 import '../logic/deals_controller.dart';
 import 'deal_detail_screen.dart';
 
-// ✅ Deep navy (image jaisa)
+// ✅ Deep navy
 const Color kDeepNavy = Color(0xFF01203D);
 
-// ✅ Accent (Pay with Mighty vibe)
+// ✅ Accent
 const Color kAccentA = Color(0xFF10B7C7);
 const Color kAccentB = Color(0xFF0B7C9D);
 
@@ -35,7 +37,7 @@ class _Debouncer {
   void dispose() => _disposed = true;
 }
 
-// ✅ safe string helper (fix warnings)
+// ✅ safe string helper
 String _s(dynamic v) => (v == null) ? '' : v.toString();
 
 class DealsScreen extends ConsumerStatefulWidget {
@@ -83,6 +85,12 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
     final cityAsync = ref.watch(currentUserCityProvider);
     final dealsStateAsync = ref.watch(dealsControllerProvider);
     final query = ref.watch(dealsQueryProvider);
+
+    final walletAsync = ref.watch(myWalletProvider);
+    final int walletBalance = walletAsync.maybeWhen(
+      data: (w) => w.balance,
+      orElse: () => 0,
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFF050A14),
@@ -183,9 +191,14 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                         ),
                         data: (state) {
                           return RefreshIndicator(
-                            onRefresh: () => ref
-                                .read(dealsControllerProvider.notifier)
-                                .refresh(),
+                            onRefresh: () async {
+                              await ref
+                                  .read(dealsControllerProvider.notifier)
+                                  .refresh();
+                              ref.invalidate(myWalletProvider);
+                              ref.invalidate(myLedgerProvider);
+                              ref.invalidate(myOrdersProvider);
+                            },
                             child: state.items.isEmpty
                                 ? ListView(
                                     children: const [
@@ -245,8 +258,7 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                               ? _s(r['name']).trim()
                                               : 'Restaurant';
 
-                                      final restaurantId =
-                                          _s(r['id']).trim(); // ✅ important
+                                      final restaurantId = _s(r['id']).trim();
 
                                       final phone = _s(r['phone']).trim();
                                       final whatsapp = _s(r['whatsapp']).trim();
@@ -262,9 +274,17 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                       final descSafe = _s(d.description).trim();
                                       final catSafe = _s(d.category).trim();
 
-                                      final subLineSafe = descSafe.isEmpty
-                                          ? catSafe
-                                          : descSafe;
+                                      final subLineSafe =
+                                          descSafe.isEmpty ? catSafe : descSafe;
+
+                                      final int? requiredMighty =
+                                          (mighty != null && mighty > 0)
+                                              ? mighty
+                                              : null;
+
+                                      final bool canPay = requiredMighty != null
+                                          ? walletBalance >= requiredMighty
+                                          : false;
 
                                       return Padding(
                                         padding: const EdgeInsets.only(
@@ -299,16 +319,34 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                           onWhatsapp: whatsapp.isEmpty
                                               ? null
                                               : () => _launchWhatsApp(whatsapp),
-                                          onPay: () {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
-                                              const SnackBar(
-                                                content: Text(
-                                                  'Pay with Mighty will be wired to Edge Function next.',
-                                                ),
-                                              ),
-                                            );
-                                          },
+                                          payEnabled: canPay,
+                                          onPay: canPay
+                                              ? () async {
+                                                  final ok = await _confirmPay(
+                                                    context,
+                                                    title: 'Redeem Deal?',
+                                                    message:
+                                                        'This will deduct $requiredMighty Mighty from your wallet.',
+                                                  );
+                                                  if (!ok) return;
+
+                                                  await _invokePay(
+                                                    context,
+                                                    ref,
+                                                    body: {'deal_id': d.id},
+                                                  );
+                                                }
+                                              : () {
+                                                  if (requiredMighty == null) {
+                                                    _toast(context,
+                                                        'Invalid Mighty price for this deal.');
+                                                  } else {
+                                                    _toast(
+                                                      context,
+                                                      'Insufficient balance: need $requiredMighty Mighty.',
+                                                    );
+                                                  }
+                                                },
                                         ),
                                       );
                                     },
@@ -347,6 +385,111 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+}
+
+// =======================================================
+// ✅ Pay helpers
+// =======================================================
+
+void _toast(BuildContext context, String msg) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(msg)),
+  );
+}
+
+Future<bool> _confirmPay(
+  BuildContext context, {
+  required String title,
+  required String message,
+}) async {
+  final res = await showDialog<bool>(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Confirm'),
+        ),
+      ],
+    ),
+  );
+  return res ?? false;
+}
+
+Future<void> _invokePay(
+  BuildContext context,
+  WidgetRef ref, {
+  required Map<String, dynamic> body,
+}) async {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    final client = Supabase.instance.client;
+
+    final resp = await client.functions.invoke(
+      'create_order_and_deduct_coins',
+      body: body,
+    );
+
+    if (context.mounted) Navigator.pop(context);
+
+    final data = resp.data;
+
+    if (resp.status != 200) {
+      final err = (data is Map && data['error'] != null)
+          ? data['error'].toString()
+          : 'Payment failed';
+
+      String msg;
+      switch (err) {
+        case 'PROFILE_INCOMPLETE':
+          msg = 'Please complete your profile first.';
+          break;
+        case 'INSUFFICIENT_BALANCE':
+          msg = 'Insufficient Mighty balance.';
+          break;
+        case 'DEAL_NOT_FOUND':
+          msg = 'Deal not found or inactive.';
+          break;
+        case 'MENU_ITEM_NOT_FOUND':
+          msg = 'Menu item not found or inactive.';
+          break;
+        case 'RESTAURANT_RESTRICTED':
+          msg = 'Restaurant is restricted.';
+          break;
+        case 'RESTAURANT_NOT_FOUND':
+          msg = 'Restaurant not found.';
+          break;
+        case 'INVALID_MIGHTY_PRICE':
+          msg = 'Invalid Mighty price for this item.';
+          break;
+        default:
+          msg = 'Error: $err';
+      }
+
+      _toast(context, msg);
+      return;
+    }
+
+    _toast(context, 'Order placed successfully ✅');
+
+    ref.invalidate(myWalletProvider);
+    ref.invalidate(myLedgerProvider);
+    ref.invalidate(myOrdersProvider);
+  } catch (e) {
+    if (context.mounted) Navigator.pop(context);
+    _toast(context, 'Error: $e');
   }
 }
 
@@ -507,7 +650,8 @@ class DealCardCleanFinal extends StatelessWidget {
     required this.onPay,
     this.onCall,
     this.onWhatsapp,
-    this.onRestaurantTap, // ✅ NEW
+    this.onRestaurantTap,
+    required this.payEnabled,
   });
 
   final String restaurantName;
@@ -519,7 +663,9 @@ class DealCardCleanFinal extends StatelessWidget {
   final VoidCallback onPay;
   final VoidCallback? onCall;
   final VoidCallback? onWhatsapp;
-  final VoidCallback? onRestaurantTap; // ✅ NEW
+  final VoidCallback? onRestaurantTap;
+
+  final bool payEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -556,7 +702,6 @@ class DealCardCleanFinal extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      // ✅ Avatar clickable
                       InkWell(
                         borderRadius: BorderRadius.circular(999),
                         onTap: onRestaurantTap,
@@ -641,7 +786,11 @@ class DealCardCleanFinal extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      _PayWithMightyButton(onTap: onPay, width: 170),
+                      _PayWithMightyButton(
+                        onTap: payEnabled ? onPay : null,
+                        width: 170,
+                        enabled: payEnabled,
+                      ),
                     ],
                   ),
                 ],
@@ -753,31 +902,39 @@ class _GlassIconButton extends StatelessWidget {
 }
 
 class _PayWithMightyButton extends StatelessWidget {
-  const _PayWithMightyButton({required this.onTap, this.width = 180});
+  const _PayWithMightyButton({
+    required this.onTap,
+    this.width = 180,
+    required this.enabled,
+  });
 
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final double width;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: onTap,
-      child: Container(
-        height: 46,
-        width: width,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          gradient: const LinearGradient(colors: [kAccentA, kAccentB]),
-        ),
-        child: const Text(
-          'Redeem with Mighty',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w900,
-            fontSize: 15.5,
-            letterSpacing: -0.2,
+    return Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          height: 46,
+          width: width,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            gradient: const LinearGradient(colors: [kAccentA, kAccentB]),
+          ),
+          child: const Text(
+            'Redeem with Mighty',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 15.5,
+              letterSpacing: -0.2,
+            ),
           ),
         ),
       ),

@@ -3,8 +3,10 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../wallet/logic/wallet_controller.dart'; // ✅ NEW
 import '../logic/deals_controller.dart';
 
 // ✅ Same constants as DealsScreen
@@ -22,6 +24,13 @@ class DealDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dealsStateAsync = ref.watch(dealsControllerProvider);
+
+    // ✅ wallet for disable
+    final walletAsync = ref.watch(myWalletProvider);
+    final int walletBalance = walletAsync.maybeWhen(
+      data: (w) => w.balance,
+      orElse: () => 0,
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFF050A14),
@@ -64,6 +73,12 @@ class DealDetailScreen extends ConsumerWidget {
                 final dealTitleSafe =
                     _s(d.title).trim().isEmpty ? 'Deal' : _s(d.title).trim();
 
+                final requiredMighty =
+                    (mighty != null && mighty > 0) ? mighty : null;
+                final canPay = requiredMighty != null
+                    ? walletBalance >= requiredMighty
+                    : false;
+
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -74,8 +89,8 @@ class DealDetailScreen extends ConsumerWidget {
                         children: [
                           IconButton(
                             onPressed: () => Navigator.pop(context),
-                            icon:
-                                const Icon(Icons.arrow_back, color: Colors.white),
+                            icon: const Icon(Icons.arrow_back,
+                                color: Colors.white),
                           ),
                           const SizedBox(width: 4),
                           Expanded(
@@ -95,7 +110,7 @@ class DealDetailScreen extends ConsumerWidget {
                       ),
                     ),
 
-                    // Card (same style as Deals card)
+                    // Card
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
                       child: _DealsLikeCard(
@@ -118,7 +133,8 @@ class DealDetailScreen extends ConsumerWidget {
                                 Padding(
                                   padding: const EdgeInsets.only(bottom: 6),
                                   child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         '• ',
@@ -132,7 +148,8 @@ class DealDetailScreen extends ConsumerWidget {
                                         child: Text(
                                           line,
                                           style: TextStyle(
-                                            color: Colors.white.withOpacity(0.75),
+                                            color:
+                                                Colors.white.withOpacity(0.75),
                                             fontSize: 16,
                                             height: 1.35,
                                           ),
@@ -153,7 +170,6 @@ class DealDetailScreen extends ConsumerWidget {
 
                             const SizedBox(height: 12),
 
-                            // Rs + Mighty (same as cards)
                             Row(
                               children: [
                                 Text(
@@ -172,7 +188,6 @@ class DealDetailScreen extends ConsumerWidget {
 
                             const SizedBox(height: 12),
 
-                            // Call + WhatsApp + Pay
                             Row(
                               children: [
                                 _GlassIconButton(
@@ -194,13 +209,35 @@ class DealDetailScreen extends ConsumerWidget {
                                 ),
                                 const Spacer(),
                                 _PayWithMightyButton(
-                                  onTap: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Pay with Mighty will be wired to Edge Function next.',
-                                        ),
-                                      ),
+                                  enabled: canPay,
+                                  onTap: () async {
+                                    if (requiredMighty == null) {
+                                      _toast(
+                                        context,
+                                        'This deal is Mighty Only (set price_mighty > 0).',
+                                      );
+                                      return;
+                                    }
+                                    if (!canPay) {
+                                      _toast(
+                                        context,
+                                        'Insufficient balance: need $requiredMighty Mighty.',
+                                      );
+                                      return;
+                                    }
+
+                                    final ok = await _confirmPay(
+                                      context,
+                                      title: 'Redeem Deal?',
+                                      message:
+                                          'This will deduct $requiredMighty Mighty from your wallet.',
+                                    );
+                                    if (!ok) return;
+
+                                    await _payDealWithMighty(
+                                      context,
+                                      ref,
+                                      dealId: d.id,
                                     );
                                   },
                                   width: 170,
@@ -264,12 +301,88 @@ class DealDetailScreen extends ConsumerWidget {
   }
 }
 
+// =======================================================
+// ✅ Pay helpers
+// =======================================================
+
+void _toast(BuildContext context, String msg) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(msg)),
+  );
+}
+
+Future<bool> _confirmPay(
+  BuildContext context, {
+  required String title,
+  required String message,
+}) async {
+  final res = await showDialog<bool>(
+    context: context,
+    builder: (_) => AlertDialog(
+      title: Text(title),
+      content: Text(message),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: const Text('Confirm'),
+        ),
+      ],
+    ),
+  );
+  return res ?? false;
+}
+
+Future<void> _payDealWithMighty(
+  BuildContext context,
+  WidgetRef ref, {
+  required String dealId,
+}) async {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    final client = Supabase.instance.client;
+
+    final resp = await client.functions.invoke(
+      'create_order_and_deduct_coins',
+      body: {
+        'deal_id': dealId,
+      },
+    );
+
+    if (resp.status != 200) {
+      throw Exception(resp.data?.toString() ?? 'Payment failed');
+    }
+
+    if (context.mounted) Navigator.pop(context);
+
+    _toast(context, 'Order placed successfully ✅');
+
+    ref.invalidate(myWalletProvider);
+    ref.invalidate(myLedgerProvider);
+    ref.invalidate(myOrdersProvider);
+  } catch (e) {
+    if (context.mounted) Navigator.pop(context);
+    _toast(context, 'Error: $e');
+  }
+}
+
+// =======================================================
+// UI
+// =======================================================
+
 class _PlainDarkBackground extends StatelessWidget {
   const _PlainDarkBackground();
 
   @override
   Widget build(BuildContext context) {
-    // same feel as Deals screen
     return const DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -381,31 +494,39 @@ class _GlassIconButton extends StatelessWidget {
 }
 
 class _PayWithMightyButton extends StatelessWidget {
-  const _PayWithMightyButton({required this.onTap, this.width = 180});
+  const _PayWithMightyButton({
+    required this.onTap,
+    required this.width,
+    required this.enabled,
+  });
 
   final VoidCallback onTap;
   final double width;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: onTap,
-      child: Container(
-        height: 46,
-        width: width,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(999),
-          gradient: const LinearGradient(colors: [kAccentA, kAccentB]),
-        ),
-        child: const Text(
-          'Redeem with Mighty',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w900,
-            fontSize: 15.5,
-            letterSpacing: -0.2,
+    return Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: onTap,
+        child: Container(
+          height: 46,
+          width: width,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            gradient: const LinearGradient(colors: [kAccentA, kAccentB]),
+          ),
+          child: const Text(
+            'Redeem with Mighty',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 15.5,
+              letterSpacing: -0.2,
+            ),
           ),
         ),
       ),

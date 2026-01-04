@@ -1,19 +1,12 @@
--- 004_menu_items_rls.sql
 alter table public.menu_items enable row level security;
 
--- Public can read active menu items (only if restaurant not deleted)
+-- ✅ Public can read active menu items
+-- ❌ removed restaurants exists() to avoid recursion
 drop policy if exists "menu_public_select_active" on public.menu_items;
 create policy "menu_public_select_active"
 on public.menu_items
 for select
-using (
-  is_active = true
-  and exists (
-    select 1 from public.restaurants r
-    where r.id = menu_items.restaurant_id
-      and r.is_deleted = false
-  )
-);
+using (is_active = true);
 
 -- Restaurant owner can CRUD their menu
 drop policy if exists "menu_owner_insert" on public.menu_items;
