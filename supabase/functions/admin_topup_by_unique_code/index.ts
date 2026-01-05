@@ -15,27 +15,16 @@ serve(async (req) => {
     if (req.method !== "POST") return json(405, { error: "Method not allowed" });
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    if (!supabaseUrl || !anonKey) return json(500, { error: "Missing env vars" });
 
-    const authClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: req.headers.get("Authorization") ?? "" } },
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const client = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: authData } = await authClient.auth.getUser();
-    const callerId = authData?.user?.id;
-    if (!callerId) return json(401, { error: "Unauthorized" });
-
-    const sb = createClient(supabaseUrl, serviceKey);
-
-    // Admin check via profiles.role
-    const { data: callerProfile } = await sb
-      .from("profiles")
-      .select("role")
-      .eq("id", callerId)
-      .maybeSingle();
-
-    if (callerProfile?.role !== "admin") return json(403, { error: "FORBIDDEN" });
+    const { data: authData, error: authErr } = await client.auth.getUser();
+    if (authErr || !authData?.user) return json(401, { error: "Unauthorized" });
 
     const body = (await req.json()) as Body;
     const unique = (body.unique_code ?? "").trim();
@@ -45,45 +34,28 @@ serve(async (req) => {
     if (!unique.startsWith("#") || unique.length < 2) return json(400, { error: "INVALID_UNIQUE_CODE" });
     if (!Number.isFinite(amount) || amount <= 0) return json(400, { error: "INVALID_AMOUNT" });
 
-    const { data: prof, error: pErr } = await sb
-      .from("profiles")
-      .select("id")
-      .eq("unique_code", unique)
-      .maybeSingle();
-
-    if (pErr) return json(500, { error: "Profile lookup failed", details: pErr.message });
-    if (!prof) return json(404, { error: "USER_NOT_FOUND" });
-
-    const userId = prof.id;
-
-    await sb.from("wallets").upsert({ user_id: userId }, { onConflict: "user_id" });
-
-    const { data: wallet, error: wErr } = await sb
-      .from("wallets")
-      .select("balance")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    if (wErr) return json(500, { error: "Wallet fetch failed", details: wErr.message });
-
-    const before = Number(wallet?.balance ?? 0);
-    const after = before + amount;
-
-    const { error: lErr } = await sb.from("wallet_ledger").insert({
-      user_id: userId,
-      type: entryType,
-      amount: amount,
-      reference_type: "admin_topup",
-      reference_id: null,
-      created_by: callerId,
+    const { data, error } = await client.rpc("rpc_admin_topup_by_unique_code", {
+      unique_code: unique,
+      amount,
+      entry_type: entryType,
     });
 
-    if (lErr) return json(500, { error: "Ledger insert failed", details: lErr.message });
+    if (error) {
+      const msg = error.message || "RPC_FAILED";
+      if (msg.includes("FORBIDDEN")) return json(403, { error: "FORBIDDEN" });
+      if (msg.includes("USER_NOT_FOUND")) return json(404, { error: "USER_NOT_FOUND" });
+      if (msg.includes("INVALID_TYPE")) return json(400, { error: "INVALID_TYPE" });
+      return json(500, { error: "RPC_ERROR", details: msg });
+    }
 
-    const { error: uErr } = await sb.from("wallets").update({ balance: after }).eq("user_id", userId);
-    if (uErr) return json(500, { error: "Wallet update failed", details: uErr.message });
+    const row = Array.isArray(data) ? data[0] : data;
 
-    return json(200, { ok: true, user_id: userId, balance_before: before, balance_after: after });
+    return json(200, {
+      ok: true,
+      user_id: row.target_user_id,
+      balance_before: row.balance_before,
+      balance_after: row.balance_after,
+    });
   } catch (e) {
     return json(500, { error: "SERVER_ERROR", details: String(e) });
   }
