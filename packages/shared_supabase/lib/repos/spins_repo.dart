@@ -27,7 +27,7 @@ class SpinsRepoSB {
         .toList();
   }
 
-  Future<SpinModel?> getSpinById({required String spinId}) async {
+  Future<SpinModel?> getSpinById(String spinId) async {
     final row = await SB.client
         .from(Tables.spins)
         .select('''
@@ -59,5 +59,16 @@ class SpinsRepoSB {
     return (rows as List)
         .map((e) => SpinMapper.toEntry(e as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<int> participantsCount(String spinId) async {
+    final res = await SB.client.rpc(
+      'rpc_spin_participants_count',
+      params: {'p_spin_id': spinId}, // ✅ FIXED
+    );
+
+    if (res == null) return 0;
+    if (res is int) return res;
+    return int.tryParse(res.toString()) ?? 0;
   }
 }

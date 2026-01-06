@@ -20,9 +20,13 @@ class _SpinDetailScreenState extends State<SpinDetailScreen> {
   bool _loading = true;
   bool _joining = false;
   List<SpinEntryModel> _entries = [];
+  int _totalCount = 0; // ✅ NEW
   Timer? _timer;
   Duration? _left;
   late SpinModel _spin;
+
+  static const int _displayLimit = 50; // ✅ NEW
+  static const int _hardLimit = 1000;  // ✅ NEW
 
   @override
   void initState() {
@@ -71,12 +75,17 @@ class _SpinDetailScreenState extends State<SpinDetailScreen> {
     try {
       // 1) refresh spin (winner/status)
       final latestSpin = await _repo.getSpinById(_spin.id);
-      // 2) refresh participants
-      final entries = await _repo.participants(_spin.id);
+
+      // ✅ 2) total participants count (RPC)
+      final total = await _repo.participantsCount(_spin.id);
+
+      // 3) latest participants (limit)
+      final entries = await _repo.participants(_spin.id, limit: _displayLimit);
 
       if (!mounted) return;
       setState(() {
         if (latestSpin != null) _spin = latestSpin;
+        _totalCount = total;
         _entries = entries;
         _loading = false;
       });
@@ -178,7 +187,17 @@ class _SpinDetailScreenState extends State<SpinDetailScreen> {
             const SizedBox(height: 16),
           ],
 
-          Text('Participants', style: Theme.of(context).textTheme.titleLarge),
+          // ✅ Participants header with total
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Participants', style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                '$_totalCount / $_hardLimit',
+                style: TextStyle(color: Colors.black.withOpacity(0.7)),
+              ),
+            ],
+          ),
           const SizedBox(height: 8),
 
           if (_loading)
@@ -190,12 +209,18 @@ class _SpinDetailScreenState extends State<SpinDetailScreen> {
             )
           else if (_entries.isEmpty)
             const Text('No participants yet.')
-          else
+          else ...[
+            Text(
+              'Showing latest $_displayLimit',
+              style: TextStyle(color: Colors.black.withOpacity(0.6)),
+            ),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 10,
               runSpacing: 10,
-              children: _entries.take(40).map((e) => _Pill(text: e.displayUserCode)).toList(),
+              children: _entries.take(_displayLimit).map((e) => _Pill(text: e.displayUserCode)).toList(),
             ),
+          ],
         ],
       ),
     );

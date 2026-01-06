@@ -8,9 +8,12 @@ class SpinsRepo {
   Future<List<SpinModel>> listForCity(String city) =>
       _sb.listSpinsForCity(city: city);
 
-  Future<List<SpinEntryModel>> participants(String spinId) =>
-      _sb.listParticipants(spinId: spinId);
+  Future<List<SpinEntryModel>> participants(String spinId, {int limit = 50}) =>
+      _sb.listParticipants(spinId: spinId, limit: limit);
+
+  Future<int> participantsCount(String spinId) =>
+      _sb.participantsCount(spinId);
 
   Future<SpinModel?> getSpinById(String spinId) =>
-      _sb.getSpinById(spinId: spinId);
+      _sb.getSpinById(spinId);
 }
