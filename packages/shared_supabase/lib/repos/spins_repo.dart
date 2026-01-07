@@ -1,8 +1,8 @@
-import 'package:shared_models/spin_model.dart';
 import 'package:shared_models/spin_entry_model.dart';
+import 'package:shared_models/spin_model.dart';
+import '../mappers/spin_mapper.dart';
 import '../supabase_client.dart';
 import '../supabase_tables.dart';
-import '../mappers/spin_mapper.dart';
 
 class SpinsRepoSB {
   Future<List<SpinModel>> listSpinsForCity({
@@ -64,7 +64,7 @@ class SpinsRepoSB {
   Future<int> participantsCount(String spinId) async {
     final res = await SB.client.rpc(
       'rpc_spin_participants_count',
-      params: {'p_spin_id': spinId}, // ✅ FIXED
+      params: {'p_spin_id': spinId}, // ✅ keep this (matches your RPC)
     );
 
     if (res == null) return 0;

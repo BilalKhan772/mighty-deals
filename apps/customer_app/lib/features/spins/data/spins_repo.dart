@@ -1,5 +1,5 @@
-import 'package:shared_models/spin_model.dart';
 import 'package:shared_models/spin_entry_model.dart';
+import 'package:shared_models/spin_model.dart';
 import 'package:shared_supabase/repos/spins_repo.dart';
 
 class SpinsRepo {
