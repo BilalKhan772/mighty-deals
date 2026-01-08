@@ -232,7 +232,7 @@ class _SpinDetailScreenState extends State<SpinDetailScreen>
   Future<void> _showSpinThenReveal(String winnerCode) async {
     if (!mounted) return;
 
-    // 1) lottie spin for 20s (full opaque background)
+    // 1) lottie spin for 10s (full opaque background)
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -672,7 +672,8 @@ class _FullScreenOpaqueDialog extends StatelessWidget {
   }
 }
 
-/// ✅ 20s Lottie spinner dialog
+/// ✅ Lottie spinner dialog (NOW 10s)  ✅
+// Change seconds here if you want 8..12 (e.g. 8, 10, 12)
 class _SpinLottieDialog extends StatefulWidget {
   const _SpinLottieDialog();
 
@@ -686,7 +687,7 @@ class _SpinLottieDialogState extends State<_SpinLottieDialog> {
   @override
   void initState() {
     super.initState();
-    _t = Timer(const Duration(seconds: 20), () {
+    _t = Timer(const Duration(seconds: 10), () {
       if (mounted) Navigator.pop(context);
     });
   }
