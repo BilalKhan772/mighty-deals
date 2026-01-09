@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/routing/route_names.dart';
+import '../../../core/notifications/push_service.dart';
 import '../../wallet/logic/wallet_controller.dart';
 import '../logic/profile_controller.dart';
 
@@ -22,21 +23,20 @@ class ProfileScreen extends ConsumerWidget {
   Color w(double a) => Colors.white.withAlpha((a * 255).round());
 
   static const List<String> _cities = [
-  'Abbottabad',
-  'Dera Ismail Khan',
-  'Faisalabad',
-  'Islamabad',
-  'Karachi',
-  'Lahore',
-  'Mardan',
-  'Multan',
-  'Peshawar',
-  'Rawalpindi',
-  'Sialkot',
-  'Swabi',
-  'Swat',
-];
-
+    'Abbottabad',
+    'Dera Ismail Khan',
+    'Faisalabad',
+    'Islamabad',
+    'Karachi',
+    'Lahore',
+    'Mardan',
+    'Multan',
+    'Peshawar',
+    'Rawalpindi',
+    'Sialkot',
+    'Swabi',
+    'Swat',
+  ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -119,7 +119,8 @@ class ProfileScreen extends ConsumerWidget {
                 (p.whatsapp == null || p.whatsapp!.isEmpty) ? '-' : p.whatsapp!;
             final addressValue =
                 (p.address == null || p.address!.isEmpty) ? '-' : p.address!;
-            final cityValue = (p.city == null || p.city!.isEmpty) ? '-' : p.city!;
+            final cityValue =
+                (p.city == null || p.city!.isEmpty) ? '-' : p.city!;
 
             return SafeArea(
               child: Align(
@@ -170,8 +171,12 @@ class ProfileScreen extends ConsumerWidget {
                           height: 52,
                           child: OutlinedButton(
                             onPressed: () async {
-                              final shouldLogout = await _showLogoutDialog(context);
+                              final shouldLogout =
+                                  await _showLogoutDialog(context);
                               if (shouldLogout != true) return;
+
+                              // ✅ IMPORTANT: delete token WHILE still logged in (RLS needs auth)
+                              await PushService.instance.removeMyTokens();
 
                               await Supabase.instance.client.auth.signOut();
                               _invalidateAll(ref);
@@ -213,7 +218,8 @@ class ProfileScreen extends ConsumerWidget {
       builder: (_) {
         return AlertDialog(
           backgroundColor: const Color(0xFF0B1220),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           title: const Text(
             'Log out?',
             style: TextStyle(
@@ -282,7 +288,8 @@ class ProfileScreen extends ConsumerWidget {
           child: Material(
             color: Colors.transparent,
             child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(24)),
               child: Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
@@ -347,7 +354,8 @@ class ProfileScreen extends ConsumerWidget {
                             label: 'City',
                             value: city.isEmpty ? null : city,
                             items: _cities,
-                            onChanged: (v) => setSheetState(() => city = v ?? ''),
+                            onChanged: (v) =>
+                                setSheetState(() => city = v ?? ''),
                           ),
 
                           const SizedBox(height: 16),
@@ -361,15 +369,20 @@ class ProfileScreen extends ConsumerWidget {
                                 final addr = addrC.text.trim();
                                 final c = city.trim();
 
-                                if (phone.isEmpty || wa.isEmpty || addr.isEmpty || c.isEmpty) {
+                                if (phone.isEmpty ||
+                                    wa.isEmpty ||
+                                    addr.isEmpty ||
+                                    c.isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Please fill all fields')),
+                                    const SnackBar(
+                                        content: Text('Please fill all fields')),
                                   );
                                   return;
                                 }
 
                                 await ref
-                                    .read(profileUpdateControllerProvider.notifier)
+                                    .read(profileUpdateControllerProvider
+                                        .notifier)
                                     .update(
                                       phone: phone,
                                       whatsapp: wa,
@@ -529,9 +542,6 @@ class _FlatField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Important: this removes any “inner box” effect
-    // by keeping ONLY ONE Container background and forcing the TextField
-    // decoration to be fully transparent with no fill/borders.
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -572,7 +582,6 @@ class _FlatField extends StatelessWidget {
               errorBorder: InputBorder.none,
               focusedErrorBorder: InputBorder.none,
               isDense: true,
-              // ✅ No “inner box” / no filled overlay
               filled: false,
               fillColor: Colors.transparent,
               contentPadding: EdgeInsets.symmetric(

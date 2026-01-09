@@ -25,3 +25,34 @@ web/build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Flutter / Dart
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Firebase / Secrets
+**/google-services.json
+**/GoogleService-Info.plist
+firebase.json
+lib/firebase_options.dart
+
+# Android
+**/android/.gradle
+**/android/local.properties
+
+# iOS
+**/ios/Pods
+**/ios/.symlinks
+
+# Windows / Mac
+**/windows/flutter/ephemeral
+
+# Old/Generated build artifacts (prevent filename too long)
+**/build_old/
+**/android/app/build/
+**/ios/Flutter/ephemeral/
+**/windows/flutter/ephemeral/
+**/macos/Flutter/ephemeral/
+**/firebase_options.dart

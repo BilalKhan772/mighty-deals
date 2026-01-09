@@ -1,11 +1,13 @@
 // apps/customer_app/lib/app.dart
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'dart:async';
 
 import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/notifications/push_service.dart';
 
 // Providers to invalidate on auth change
 import 'features/deals/logic/deals_controller.dart';
@@ -26,15 +28,14 @@ class _AppState extends ConsumerState<App> {
   void initState() {
     super.initState();
 
-    // 🔥 Listen to Supabase auth changes (login/logout/user update)
     _authSub = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       final event = data.event;
 
+      // ✅ Always refresh user-dependent providers on auth changes
       if (event == AuthChangeEvent.signedIn ||
           event == AuthChangeEvent.signedOut ||
           event == AuthChangeEvent.userUpdated ||
           event == AuthChangeEvent.tokenRefreshed) {
-        // ✅ Reset / refresh all user-dependent providers
         ref.invalidate(currentUserCityProvider);
         ref.invalidate(dealsControllerProvider);
         ref.invalidate(dealsQueryProvider);
@@ -43,6 +44,39 @@ class _AppState extends ConsumerState<App> {
         ref.invalidate(myWalletProvider);
         ref.invalidate(myLedgerProvider);
       }
+
+      // ✅ After sign-in: wait a bit, then read city, then upsert token
+      if (event == AuthChangeEvent.signedIn) {
+        Future.microtask(() async {
+          // Give providers/profile some time
+          await Future.delayed(const Duration(seconds: 1));
+
+          // Try up to 3 times to get city
+          String? city;
+          for (int i = 0; i < 3; i++) {
+            final asyncCity = ref.read(currentUserCityProvider);
+            city = asyncCity.maybeWhen(
+              data: (v) => v,
+              orElse: () => null,
+            );
+
+            if (city != null && city.isNotEmpty) break;
+            await Future.delayed(const Duration(milliseconds: 600));
+          }
+
+          print("🏙️ City resolved after sign-in: $city");
+
+          if (city != null && city.isNotEmpty) {
+            await PushService.instance.upsertToken(city: city);
+          } else {
+            print("⚠️ City is still null/empty, token not saved yet.");
+          }
+        });
+      }
+
+      // ✅ DO NOT delete tokens here on signedOut
+      // Because after signOut, auth may be gone and RLS won't allow delete.
+      // Token delete should happen BEFORE signOut (we do it in ProfileScreen logout button).
     });
   }
 

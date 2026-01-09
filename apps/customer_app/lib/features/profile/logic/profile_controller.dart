@@ -6,6 +6,9 @@ import '../data/profile_repo.dart';
 // ✅ Add this import so we can invalidate deals providers after city update
 import '../../deals/logic/deals_controller.dart';
 
+// ✅ NEW: push service import (for city-change token update)
+import '../../../core/notifications/push_service.dart';
+
 final profileRepoProvider = Provider<ProfileRepo>((ref) => ProfileRepo());
 
 final myProfileProvider = FutureProvider<ProfileModel>((ref) async {
@@ -47,6 +50,9 @@ class ProfileUpdateController extends StateNotifier<AsyncValue<void>> {
       // So invalidate these to force fresh city + refetch deals.
       _ref.invalidate(currentUserCityProvider);
       _ref.invalidate(dealsControllerProvider);
+
+      // ✅ NEW: update push token row city (same user row update allowed by RLS)
+      await PushService.instance.upsertToken(city: city);
     });
   }
 }
