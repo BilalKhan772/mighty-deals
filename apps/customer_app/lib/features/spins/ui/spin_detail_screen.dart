@@ -70,11 +70,6 @@ class _SpinDetailScreenState extends State<SpinDetailScreen>
     });
   }
 
-  bool get _isWeekday {
-    final d = DateTime.now().weekday;
-    return d >= 1 && d <= 5;
-  }
-
   bool get _regOpen {
     if (_spin.status != 'published') return false;
     final close = _spin.regCloseAt;
@@ -82,13 +77,33 @@ class _SpinDetailScreenState extends State<SpinDetailScreen>
     return DateTime.now().isBefore(close);
   }
 
-  bool get _freeEnabledByConfig => (_spin.freeSlots) > 0; // paid spin => 0
+  // ✅ ADD these helpers (below _regOpen)
+  String get _todayCode {
+    const map = {
+      DateTime.monday: 'mon',
+      DateTime.tuesday: 'tue',
+      DateTime.wednesday: 'wed',
+      DateTime.thursday: 'thu',
+      DateTime.friday: 'fri',
+      DateTime.saturday: 'sat',
+      DateTime.sunday: 'sun',
+    };
+    return map[DateTime.now().weekday]!;
+  }
 
+  bool get _todayAllowedFree {
+    final today = _todayCode.toLowerCase();
+    final days = _spin.freeDays.map((e) => e.toLowerCase()).toList();
+    return _spin.freeEnabled && days.contains(today);
+  }
+
+  // 🔁 REPLACE _canJoinFree
   bool get _canJoinFree =>
       !_joining &&
       _regOpen &&
-      _isWeekday &&
-      _freeEnabledByConfig &&
+      _spin.freeEnabled &&
+      _spin.freeSlots > 0 &&
+      _todayAllowedFree &&
       !_freeSlotsFull;
 
   bool get _canJoinPaid => !_joining && _regOpen;
@@ -120,14 +135,18 @@ class _SpinDetailScreenState extends State<SpinDetailScreen>
 
     if (m.contains('FREE_SLOTS_FULL')) return 'Free slots are full.';
     if (m.contains('FREE_NOT_AVAILABLE')) {
-      return 'Free option is only available on weekdays (Mon–Fri).';
+      return 'Free not available today.';
     }
     if (m.contains('ALREADY_JOINED_FREE')) return 'You already joined free.';
     if (m.contains('TOTAL_SLOTS_FULL')) return 'This spin is full.';
     if (m.contains('REG_CLOSED')) return 'Registration is closed.';
-    if (m.contains('REG_NOT_STARTED')) return 'Registration has not started yet.';
+    if (m.contains('REG_NOT_STARTED')) {
+      return 'Registration has not started yet.';
+    }
     if (m.contains('SPIN_NOT_OPEN')) return 'Spin is not open.';
-    if (m.contains('INSUFFICIENT_BALANCE')) return 'Insufficient Mighty balance.';
+    if (m.contains('INSUFFICIENT_BALANCE')) {
+      return 'Insufficient Mighty balance.';
+    }
     if (m.contains('UNAUTHORIZED')) return 'Please login again.';
 
     if (m.contains('FUNCTIONEXCEPTION') || m.contains('RPC_ERROR')) {
@@ -153,12 +172,6 @@ class _SpinDetailScreenState extends State<SpinDetailScreen>
 
       final nextWinnerReady =
           nextSpin.status == 'finished' && nextSpin.displayWinnerCode.isNotEmpty;
-
-      // ✅ optional reset: if spin got republished/new, allow free again
-      // (we can't know true free-capacity from DB, so we only reset when status is not finished)
-      if (nextSpin.status != 'finished' && _freeSlotsFull) {
-        // keep it as-is; user can still refresh; don't auto-clear aggressively
-      }
 
       setState(() {
         _spin = nextSpin;
@@ -274,16 +287,18 @@ class _SpinDetailScreenState extends State<SpinDetailScreen>
     // ✅ If reveal flow is running, don't show winner card behind it
     final showWinnerCard = winnerReady && !_revealInProgress;
 
-    // ✅ Join Free explanation like registration-closed
+    // 🔁 REPLACE freeDisabledReason logic
     String? freeDisabledReason;
     if (!_regOpen) {
       freeDisabledReason = 'Registration is closed.';
-    } else if (!_isWeekday) {
-      freeDisabledReason = 'Free option is only available on weekdays (Mon–Fri).';
-    } else if (!_freeEnabledByConfig) {
-      freeDisabledReason = 'Free option is not available for this spin.';
-    } else if (_freeSlotsFull) {
+    } else if (!_spin.freeEnabled) {
+      // ✅ CHANGED: paid spin pe ye msg aata tha, ab new msg
+      freeDisabledReason = 'No free slots available.';
+    } else if (_spin.freeSlots <= 0 || _freeSlotsFull) {
       freeDisabledReason = 'Free slots are full.';
+    } else if (!_todayAllowedFree) {
+      freeDisabledReason =
+          'Free available on: ${_spin.freeDays.map((e) => e.toUpperCase()).join(', ')}';
     }
 
     return Scaffold(
@@ -331,7 +346,6 @@ class _SpinDetailScreenState extends State<SpinDetailScreen>
                       ],
                     ),
                     const SizedBox(height: 16),
-
                     if (showWinnerCard) ...[
                       _WinnerCard(winnerText: _spin.displayWinnerCode),
                     ] else if (!winnerReady) ...[
@@ -355,7 +369,6 @@ class _SpinDetailScreenState extends State<SpinDetailScreen>
                         ],
                       ),
 
-                      // ✅ Only show free-related disabled reason (like reg-closed style), but ONLY when free is not available
                       if (!_canJoinFree && freeDisabledReason != null) ...[
                         const SizedBox(height: 10),
                         Text(
@@ -364,14 +377,8 @@ class _SpinDetailScreenState extends State<SpinDetailScreen>
                         ),
                       ],
 
-                      // ✅ If paid is also blocked by reg closed, keep existing message style
-                      if (!_regOpen) ...[
-                        const SizedBox(height: 10),
-                        Text(
-                          'Registration is closed.',
-                          style: TextStyle(color: Colors.white.withOpacity(0.70)),
-                        ),
-                      ],
+                      // ✅ FIX: duplicate "Registration is closed." remove (now only once)
+                      // (freeDisabledReason already shows it when !_regOpen)
                     ],
                   ],
                 ),
@@ -627,12 +634,18 @@ class _WinnerCard extends StatelessWidget {
               children: [
                 const Text(
                   'Winner!',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900),
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   winnerText,
-                  style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -673,7 +686,6 @@ class _FullScreenOpaqueDialog extends StatelessWidget {
 }
 
 /// ✅ Lottie spinner dialog (NOW 10s)  ✅
-// Change seconds here if you want 8..12 (e.g. 8, 10, 12)
 class _SpinLottieDialog extends StatefulWidget {
   const _SpinLottieDialog();
 
@@ -841,7 +853,8 @@ class _WinnerRevealDialogState extends State<_WinnerRevealDialog>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(color: cs.primary.withOpacity(0.35)),
@@ -855,7 +868,8 @@ class _WinnerRevealDialogState extends State<_WinnerRevealDialog>
                     const SizedBox(height: 16),
                     Text(
                       widget.winnerText,
-                      style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w900),
+                      style: const TextStyle(
+                          fontSize: 34, fontWeight: FontWeight.w900),
                     ),
                     const SizedBox(height: 10),
                     Text(
@@ -873,7 +887,9 @@ class _WinnerRevealDialogState extends State<_WinnerRevealDialog>
                     const SizedBox(height: 8),
                     Text(
                       'Tap anywhere to close',
-                      style: TextStyle(color: Colors.white.withOpacity(0.55), fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.55),
+                          fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -914,5 +930,6 @@ class _ConfettiPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _ConfettiPainter oldDelegate) => oldDelegate.t != t;
+  bool shouldRepaint(covariant _ConfettiPainter oldDelegate) =>
+      oldDelegate.t != t;
 }

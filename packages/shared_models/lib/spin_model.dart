@@ -6,7 +6,12 @@ class SpinModel {
   final int paidCostPerSlot;
   final DateTime? regOpenAt;
   final DateTime? regCloseAt;
-  final String status; // draft/published/closed/running/finished
+  final String status;
+
+  // ✅ NEW (DB-driven)
+  final bool freeEnabled;
+  final List<String> freeDays;
+
   final String? winnerUserId;
   final String? winnerCode;
 
@@ -19,6 +24,8 @@ class SpinModel {
     required this.regOpenAt,
     required this.regCloseAt,
     required this.status,
+    required this.freeEnabled,
+    required this.freeDays,
     required this.winnerUserId,
     required this.winnerCode,
   });
@@ -32,6 +39,12 @@ class SpinModel {
       return int.tryParse(v.toString()) ?? 0;
     }
 
+    List<String> toStringList(dynamic v) {
+      if (v == null) return const [];
+      if (v is List) return v.map((e) => e.toString()).toList();
+      return const [];
+    }
+
     return SpinModel(
       id: m['id'] as String,
       city: (m['city'] ?? '') as String,
@@ -41,13 +54,16 @@ class SpinModel {
       regOpenAt: dt(m['reg_open_at']),
       regCloseAt: dt(m['reg_close_at']),
       status: (m['status'] ?? 'draft') as String,
+
+      // ✅ NEW
+      freeEnabled: (m['free_enabled'] ?? true) as bool,
+      freeDays: toStringList(m['free_days']),
+
       winnerUserId: m['winner_user_id'] as String?,
       winnerCode: m['winner_code'] as String?,
     );
   }
 
-  /// Prefer DB winner_code (e.g. "#4227") -> "User#4227"
-  /// Fallback: if winner_code missing but winner_user_id exists -> show short id
   String get displayWinnerCode {
     final c = winnerCode;
     if (c != null && c.isNotEmpty) {
@@ -57,7 +73,6 @@ class SpinModel {
 
     final uid = winnerUserId;
     if (uid != null && uid.isNotEmpty) {
-      // fallback short form
       final short = uid.length >= 4 ? uid.substring(0, 4) : uid;
       return 'Winner($short)';
     }

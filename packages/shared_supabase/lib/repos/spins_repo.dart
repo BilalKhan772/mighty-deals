@@ -14,6 +14,7 @@ class SpinsRepoSB {
         .select('''
           id, city, deal_text, free_slots, paid_cost_per_slot,
           reg_open_at, reg_close_at, status,
+          free_enabled, free_days,
           winner_user_id, winner_code,
           created_at
         ''')
@@ -33,6 +34,7 @@ class SpinsRepoSB {
         .select('''
           id, city, deal_text, free_slots, paid_cost_per_slot,
           reg_open_at, reg_close_at, status,
+          free_enabled, free_days,
           winner_user_id, winner_code,
           created_at
         ''')
