@@ -8,6 +8,13 @@ class OrderModel {
   final String status;
   final DateTime createdAt;
 
+  // snapshot (from orders table)
+  final String? phone;
+  final String? whatsapp;
+  final String? address;
+  final String? city;
+
+  // joined restaurant/deal/menuItem (optional maps)
   final Map<String, dynamic>? restaurant;
   final Map<String, dynamic>? deal;
   final Map<String, dynamic>? menuItem;
@@ -21,6 +28,10 @@ class OrderModel {
     required this.coinsPaid,
     required this.status,
     required this.createdAt,
+    required this.phone,
+    required this.whatsapp,
+    required this.address,
+    required this.city,
     required this.restaurant,
     required this.deal,
     required this.menuItem,
@@ -35,6 +46,12 @@ class OrderModel {
         coinsPaid: (m['coins_paid'] as int?) ?? 0,
         status: (m['status'] as String?) ?? 'pending',
         createdAt: DateTime.parse(m['created_at'] as String),
+
+        phone: m['phone'] as String?,
+        whatsapp: m['whatsapp'] as String?,
+        address: m['address'] as String?,
+        city: m['city'] as String?,
+
         restaurant: m['restaurant'] as Map<String, dynamic>?,
         deal: m['deal'] as Map<String, dynamic>?,
         menuItem: m['menu_item'] as Map<String, dynamic>?,
