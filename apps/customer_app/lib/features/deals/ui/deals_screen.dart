@@ -261,7 +261,12 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                       final restaurantId = _s(r['id']).trim();
 
                                       final phone = _s(r['phone']).trim();
-                                      final whatsapp = _s(r['whatsapp']).trim();
+                                      final whatsappRaw = _s(r['whatsapp']).trim();
+
+                                      // ✅ If whatsapp missing, still allow whatsapp icon using phone
+                                      final whatsapp = whatsappRaw.isNotEmpty
+                                          ? whatsappRaw
+                                          : phone;
 
                                       final rs = _tryInt(d.priceRs);
                                       final mighty = _tryInt(d.priceMighty);
@@ -287,9 +292,8 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                           : false;
 
                                       return Padding(
-                                        padding: const EdgeInsets.only(
-                                          bottom: 14,
-                                        ),
+                                        padding:
+                                            const EdgeInsets.only(bottom: 14),
                                         child: DealCardCleanFinal(
                                           restaurantName: restaurantName,
                                           dealTitle: dealTitleSafe,
@@ -313,12 +317,15 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                                     '${RouteNames.restaurant}/$restaurantId',
                                                   );
                                                 },
+
+                                          // ✅ FIXED
                                           onCall: phone.isEmpty
                                               ? null
-                                              : () => _launchTel(phone),
+                                              : () => _launchTel(context, phone),
                                           onWhatsapp: whatsapp.isEmpty
                                               ? null
-                                              : () => _launchWhatsApp(whatsapp),
+                                              : () => _launchWhatsApp(context, whatsapp),
+
                                           payEnabled: canPay,
                                           onPay: canPay
                                               ? () async {
@@ -373,17 +380,56 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
     return null;
   }
 
-  Future<void> _launchTel(String phone) async {
-    final cleaned = phone.replaceAll(RegExp(r'[^0-9+]'), '');
-    final uri = Uri.parse('tel:$cleaned');
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  // ===================== LAUNCHERS (FIXED) =====================
+
+  String _sanitizePhone(String phone) =>
+      phone.replaceAll(RegExp(r'[^0-9+]'), '');
+
+  // ✅ default Pakistan conversion: 0300... -> +92300...
+  String _normalizeToE164PK(String raw) {
+    var p = _sanitizePhone(raw);
+    if (p.isEmpty) return p;
+    if (p.startsWith('+')) return p;
+
+    if (p.startsWith('03')) {
+      p = p.substring(1); // remove leading 0
+      return '+92$p';
+    }
+
+    if (p.startsWith('92')) return '+$p';
+    return p;
   }
 
-  Future<void> _launchWhatsApp(String number) async {
-    final cleaned = number.replaceAll(RegExp(r'[^0-9]'), '');
-    final uri = Uri.parse('https://wa.me/$cleaned');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+  Future<void> _launchTel(BuildContext context, String phone) async {
+    final cleaned = _sanitizePhone(phone);
+    if (cleaned.isEmpty) {
+      _toast(context, 'Phone number not available');
+      return;
+    }
+
+    final uri = Uri(scheme: 'tel', path: cleaned);
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+    if (!ok && context.mounted) {
+      _toast(context, 'Could not open dialer');
+    }
+  }
+
+  Future<void> _launchWhatsApp(BuildContext context, String number) async {
+    final e164 = _normalizeToE164PK(number);
+    if (e164.isEmpty) {
+      _toast(context, 'WhatsApp number not available');
+      return;
+    }
+
+    final digits = e164.replaceAll('+', '').replaceAll(RegExp(r'[^0-9]'), '');
+    final uri = Uri.https('wa.me', '/$digits', {
+      'text': 'Hi! I saw your deal on Mighty Deals.',
+    });
+
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      _toast(context, 'Could not open WhatsApp');
     }
   }
 }
@@ -494,7 +540,7 @@ Future<void> _invokePay(
 }
 
 // =======================================================
-// UI WIDGETS
+// UI WIDGETS (same as your existing)
 // =======================================================
 
 class _PlainDarkBackground extends StatelessWidget {
@@ -635,7 +681,7 @@ class _FilterChipPill extends StatelessWidget {
 }
 
 // =======================================================
-// Deal Card
+// Deal Card (unchanged)
 // =======================================================
 
 class DealCardCleanFinal extends StatelessWidget {

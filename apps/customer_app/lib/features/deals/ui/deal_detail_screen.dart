@@ -58,7 +58,10 @@ class DealDetailScreen extends ConsumerWidget {
                     : _s(r['name']).trim();
 
                 final phone = _s(r['phone']).trim();
-                final whatsapp = _s(r['whatsapp']).trim();
+                final whatsappRaw = _s(r['whatsapp']).trim();
+
+                // ✅ Fallback: if whatsapp empty, use phone
+                final whatsapp = whatsappRaw.isNotEmpty ? whatsappRaw : phone;
 
                 final details = _bulletLines(_s(d.description));
 
@@ -190,24 +193,15 @@ class DealDetailScreen extends ConsumerWidget {
 
                             Row(
                               children: [
-                                _GlassIconButton(
-                                  onTap: phone.isEmpty
-                                      ? null
-                                      : () => _launchTel(phone),
-                                  icon: Icons.call,
+                                // ✅ FIXED: proper widget use
+                                _GlassIconButtonRow(
+                                  context: context,
+                                  phone: phone,
+                                  whatsapp: whatsapp,
                                 ),
-                                const SizedBox(width: 10),
-                                _GlassIconButton(
-                                  onTap: whatsapp.isEmpty
-                                      ? null
-                                      : () => _launchWhatsApp(whatsapp),
-                                  iconWidget: const FaIcon(
-                                    FontAwesomeIcons.whatsapp,
-                                    size: 20,
-                                    color: Colors.white,
-                                  ),
-                                ),
+
                                 const Spacer(),
+
                                 _PayWithMightyButton(
                                   enabled: canPay,
                                   onTap: () async {
@@ -284,20 +278,6 @@ class DealDetailScreen extends ConsumerWidget {
           .toList();
     }
     return [t];
-  }
-
-  static Future<void> _launchTel(String phone) async {
-    final cleaned = phone.replaceAll(RegExp(r'[^0-9+]'), '');
-    final uri = Uri.parse('tel:$cleaned');
-    if (await canLaunchUrl(uri)) await launchUrl(uri);
-  }
-
-  static Future<void> _launchWhatsApp(String number) async {
-    final cleaned = number.replaceAll(RegExp(r'[^0-9]'), '');
-    final uri = Uri.parse('https://wa.me/$cleaned');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
   }
 }
 
@@ -459,7 +439,11 @@ class _MightyCapsuleSimple extends StatelessWidget {
 }
 
 class _GlassIconButton extends StatelessWidget {
-  const _GlassIconButton({required this.onTap, this.icon, this.iconWidget});
+  const _GlassIconButton({
+    required this.onTap,
+    this.icon,
+    this.iconWidget,
+  });
 
   final VoidCallback? onTap;
   final IconData? icon;
@@ -530,6 +514,87 @@ class _PayWithMightyButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// =======================================================
+// ✅ Contact buttons row (FIXED & USED ✅)
+// =======================================================
+
+class _GlassIconButtonRow extends StatelessWidget {
+  const _GlassIconButtonRow({
+    required this.context,
+    required this.phone,
+    required this.whatsapp,
+  });
+
+  final BuildContext context;
+  final String phone;
+  final String whatsapp;
+
+  String _sanitizePhone(String phone) =>
+      phone.replaceAll(RegExp(r'[^0-9+]'), '');
+
+  // Pakistan default: 03xxxxxxxxx -> +923xxxxxxxxx
+  String _normalizeToE164PK(String raw) {
+    var p = _sanitizePhone(raw);
+    if (p.isEmpty) return p;
+    if (p.startsWith('+')) return p;
+
+    if (p.startsWith('03')) {
+      p = p.substring(1);
+      return '+92$p';
+    }
+    if (p.startsWith('92')) return '+$p';
+    return p;
+  }
+
+  Future<void> _launchTel(String phone) async {
+    final cleaned = _sanitizePhone(phone);
+    if (cleaned.isEmpty) {
+      _toast(context, 'Phone number not available');
+      return;
+    }
+    final uri = Uri(scheme: 'tel', path: cleaned);
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok) _toast(context, 'Could not open dialer');
+  }
+
+  Future<void> _launchWhatsApp(String number) async {
+    final e164 = _normalizeToE164PK(number);
+    if (e164.isEmpty) {
+      _toast(context, 'WhatsApp number not available');
+      return;
+    }
+
+    final digits = e164.replaceAll('+', '').replaceAll(RegExp(r'[^0-9]'), '');
+    final uri = Uri.https('wa.me', '/$digits', {
+      'text': 'Hi! I saw your deal on Mighty Deals.',
+    });
+
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok) _toast(context, 'Could not open WhatsApp');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _GlassIconButton(
+          onTap: phone.isEmpty ? null : () => _launchTel(phone),
+          icon: Icons.call,
+        ),
+        const SizedBox(width: 10),
+        _GlassIconButton(
+          onTap: whatsapp.isEmpty ? null : () => _launchWhatsApp(whatsapp),
+          iconWidget: const FaIcon(
+            FontAwesomeIcons.whatsapp,
+            size: 20,
+            color: Colors.white,
+          ),
+        ),
+      ],
     );
   }
 }

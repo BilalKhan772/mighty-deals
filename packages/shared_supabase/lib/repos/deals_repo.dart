@@ -45,7 +45,9 @@ class DealsRepoSB {
 
     final s = searchRestaurantName.trim();
     if (s.isNotEmpty) {
-      q = q.ilike('restaurants.name', '%$s%');
+      // ✅ SAFER: filter on alias "restaurant"
+      // If it doesn't work in your schema, revert to 'restaurants.name'
+      q = q.ilike('restaurant.name', '%$s%');
     }
 
     final rows = await q
@@ -57,7 +59,7 @@ class DealsRepoSB {
         .toList();
   }
 
-  // ✅ NEW: Restaurant specific deals (for RestaurantViewScreen Deals tab)
+  // ✅ Restaurant specific deals (for RestaurantViewScreen Deals tab)
   Future<List<DealModel>> listDealsByRestaurant({
     required String restaurantId,
   }) async {
