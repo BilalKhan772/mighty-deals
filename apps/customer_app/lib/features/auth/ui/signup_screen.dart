@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/routing/route_names.dart';
+import '../../../core/utils/support_launcher.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../profile/logic/profile_controller.dart';
 import '../../wallet/logic/wallet_controller.dart';
@@ -26,6 +27,35 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   bool _hidePass = true;
   bool _hideConfirm = true;
 
+  // ✅ Inline errors
+  String? _emailError;
+  String? _passError;
+  String? _confirmError;
+  String? _formError; // server/auth error banner
+
+  @override
+  void initState() {
+    super.initState();
+    email.addListener(_clearEmailError);
+    pass.addListener(_clearPassError);
+    confirm.addListener(_clearConfirmError);
+  }
+
+  void _clearEmailError() {
+    if (_emailError != null) setState(() => _emailError = null);
+    if (_formError != null) setState(() => _formError = null);
+  }
+
+  void _clearPassError() {
+    if (_passError != null) setState(() => _passError = null);
+    if (_formError != null) setState(() => _formError = null);
+  }
+
+  void _clearConfirmError() {
+    if (_confirmError != null) setState(() => _confirmError = null);
+    if (_formError != null) setState(() => _formError = null);
+  }
+
   @override
   void dispose() {
     email.dispose();
@@ -41,15 +71,58 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     ref.invalidate(myLedgerProvider);
   }
 
+  bool _isValidEmail(String v) {
+    final value = v.trim();
+    return value.contains('@') && value.contains('.') && value.length >= 6;
+  }
+
+  bool _validate() {
+    final e = email.text.trim();
+    final p = pass.text;
+    final c = confirm.text;
+
+    String? eErr;
+    String? pErr;
+    String? cErr;
+
+    if (e.isEmpty) {
+      eErr = 'Email is required.';
+    } else if (!_isValidEmail(e)) {
+      eErr = 'Please enter a valid email.';
+    }
+
+    if (p.isEmpty) {
+      pErr = 'Password is required.';
+    } else if (p.length < 6) {
+      pErr = 'Password must be at least 6 characters.';
+    }
+
+    if (c.isEmpty) {
+      cErr = 'Please confirm your password.';
+    } else if (p != c) {
+      cErr = 'Passwords do not match.';
+    }
+
+    setState(() {
+      _emailError = eErr;
+      _passError = pErr;
+      _confirmError = cErr;
+    });
+
+    return eErr == null && pErr == null && cErr == null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(authControllerProvider);
 
+    // ✅ Receive mapped, clean errors from controller and show inline banner
     ref.listen(authControllerProvider, (_, next) {
       next.whenOrNull(
-        error: (e, __) => ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        ),
+        error: (e, __) {
+          final msg = e.toString().replaceFirst('Exception: ', '').trim();
+          setState(() => _formError = msg.isEmpty ? 'Something went wrong.' : msg);
+        },
       );
     });
 
@@ -94,6 +167,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             ),
                           ),
                           const SizedBox(height: 14),
+
+                          // ✅ Inline form/server error banner
+                          if (_formError != null) ...[
+                            _InlineBanner(message: _formError!),
+                            const SizedBox(height: 12),
+                          ],
+
                           _AuthField(
                             controller: email,
                             hint: 'Email',
@@ -101,6 +181,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             prefixIcon: Icons.mail_outline_rounded,
                             obscureText: false,
                             suffix: null,
+                            errorText: _emailError,
                           ),
                           const SizedBox(height: 12),
                           _AuthField(
@@ -117,6 +198,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                     : Icons.visibility_off_outlined,
                               ),
                             ),
+                            errorText: _passError,
                           ),
                           const SizedBox(height: 12),
                           _AuthField(
@@ -133,6 +215,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                     : Icons.visibility_off_outlined,
                               ),
                             ),
+                            errorText: _confirmError,
                           ),
                           const SizedBox(height: 18),
                           Padding(
@@ -143,14 +226,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                               onPressed: state.isLoading
                                   ? null
                                   : () async {
-                                      if (pass.text != confirm.text) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Passwords do not match'),
-                                          ),
-                                        );
-                                        return;
-                                      }
+                                      FocusScope.of(context).unfocus();
+
+                                      if (!_validate()) return;
 
                                       final ok = await ref
                                           .read(authControllerProvider.notifier)
@@ -165,7 +243,33 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                     },
                             ),
                           ),
+
+                          // ✅ Support/help
                           const SizedBox(height: 12),
+                          Center(
+                            child: Column(
+                              children: [
+                                Text(
+                                  'Having trouble creating an account?',
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.65),
+                                    fontSize: 13.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                TextButton.icon(
+                                  onPressed: () => SupportLauncher.open(context),
+                                  icon: const Icon(Icons.support_agent_rounded, size: 18),
+                                  label: const Text('Open Support'),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: const Color(0xFF06B6D4),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          const SizedBox(height: 6),
                           Center(
                             child: GestureDetector(
                               onTap: () => context.go(RouteNames.login),
@@ -201,6 +305,41 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _InlineBanner extends StatelessWidget {
+  final String message;
+  const _InlineBanner({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: const Color.fromRGBO(255, 86, 86, 0.12),
+        border: Border.all(color: const Color.fromRGBO(255, 86, 86, 0.35), width: 1),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline_rounded, size: 18, color: Color(0xFFFF6B6B)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.85),
+                fontSize: 13.2,
+                height: 1.25,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -249,6 +388,7 @@ class _AuthField extends StatelessWidget {
   final IconData prefixIcon;
   final bool obscureText;
   final Widget? suffix;
+  final String? errorText;
 
   const _AuthField({
     required this.controller,
@@ -257,31 +397,51 @@ class _AuthField extends StatelessWidget {
     required this.prefixIcon,
     required this.obscureText,
     required this.suffix,
+    required this.errorText,
   });
 
   @override
   Widget build(BuildContext context) {
     final iconColor = const Color(0xFF06B6D4).withOpacity(0.65);
 
-    return SizedBox(
-      height: 54,
-      child: TextField(
-        controller: controller,
-        keyboardType: keyboardType,
-        autocorrect: false,
-        obscureText: obscureText,
-        style: const TextStyle(fontSize: 14.8),
-        decoration: InputDecoration(
-          hintText: hint,
-          prefixIcon: Icon(prefixIcon, color: iconColor),
-          suffixIcon: suffix == null
-              ? null
-              : IconTheme(
-                  data: IconThemeData(color: iconColor),
-                  child: suffix!,
-                ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          height: 54,
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            autocorrect: false,
+            obscureText: obscureText,
+            style: const TextStyle(fontSize: 14.8),
+            decoration: InputDecoration(
+              hintText: hint,
+              prefixIcon: Icon(prefixIcon, color: iconColor),
+              suffixIcon: suffix == null
+                  ? null
+                  : IconTheme(
+                      data: IconThemeData(color: iconColor),
+                      child: suffix!,
+                    ),
+            ),
+          ),
         ),
-      ),
+        if (errorText != null) ...[
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.only(left: 8),
+            child: Text(
+              errorText!,
+              style: const TextStyle(
+                color: Color(0xFFFF6B6B),
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ],
     );
   }
 }

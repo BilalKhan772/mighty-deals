@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/utils/auth_error_mapper.dart';
 import '../data/auth_repo.dart';
 
 final authRepoProvider = Provider<AuthRepo>((ref) => AuthRepo());
@@ -32,7 +34,8 @@ class AuthController extends AutoDisposeAsyncNotifier<void> {
       state = const AsyncData(null);
       return true;
     } catch (e, st) {
-      state = AsyncError(e, st);
+      final msg = AuthErrorMapper.friendlyMessage(e);
+      state = AsyncError(Exception(msg), st);
       return false;
     }
   }
@@ -45,7 +48,8 @@ class AuthController extends AutoDisposeAsyncNotifier<void> {
       state = const AsyncData(null);
       return true;
     } catch (e, st) {
-      state = AsyncError(e, st);
+      final msg = AuthErrorMapper.friendlyMessage(e);
+      state = AsyncError(Exception(msg), st);
       return false;
     }
   }
@@ -56,7 +60,8 @@ class AuthController extends AutoDisposeAsyncNotifier<void> {
       await _repo.logout();
       state = const AsyncData(null);
     } catch (e, st) {
-      state = AsyncError(e, st);
+      final msg = AuthErrorMapper.friendlyMessage(e);
+      state = AsyncError(Exception(msg), st);
     }
   }
 }
