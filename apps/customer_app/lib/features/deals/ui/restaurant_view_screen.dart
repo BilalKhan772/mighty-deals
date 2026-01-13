@@ -117,7 +117,10 @@ class _Body extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final phone = _s(restaurant.phone).trim();
-    final whatsapp = _s(restaurant.whatsapp).trim();
+    final whatsappRaw = _s(restaurant.whatsapp).trim();
+
+    // ✅ Fallback: if whatsapp empty, use phone (same as deal detail screen)
+    final whatsapp = whatsappRaw.isNotEmpty ? whatsappRaw : phone;
 
     final addressLine = [
       _s(restaurant.address).trim(),
@@ -194,13 +197,14 @@ class _Body extends ConsumerWidget {
               Row(
                 children: [
                   _GlassIconButton(
-                    onTap: phone.isEmpty ? null : () => _launchTel(phone),
+                    onTap: phone.isEmpty ? null : () => _launchTel(context, phone),
                     icon: Icons.call,
                   ),
                   const SizedBox(width: 12),
                   _GlassIconButton(
-                    onTap:
-                        whatsapp.isEmpty ? null : () => _launchWhatsApp(whatsapp),
+                    onTap: whatsapp.isEmpty
+                        ? null
+                        : () => _launchWhatsApp(context, whatsapp),
                     iconWidget: const FaIcon(
                       FontAwesomeIcons.whatsapp,
                       size: 20,
@@ -884,16 +888,49 @@ int? _mightyFromRs(int? rs) {
   return ((rs + (kRsPerMighty - 1)) / kRsPerMighty).floor();
 }
 
-Future<void> _launchTel(String phone) async {
-  final cleaned = phone.replaceAll(RegExp(r'[^0-9+]'), '');
-  final uri = Uri.parse('tel:$cleaned');
-  if (await canLaunchUrl(uri)) await launchUrl(uri);
+// -------------------- NEW: Reliable launch helpers --------------------
+
+String _sanitizePhone(String phone) =>
+    phone.replaceAll(RegExp(r'[^0-9+]'), '');
+
+// Pakistan default: 03xxxxxxxxx -> +923xxxxxxxxx
+String _normalizeToE164PK(String raw) {
+  var p = _sanitizePhone(raw);
+  if (p.isEmpty) return p;
+  if (p.startsWith('+')) return p;
+
+  if (p.startsWith('03')) {
+    p = p.substring(1);
+    return '+92$p';
+  }
+  if (p.startsWith('92')) return '+$p';
+  return p;
 }
 
-Future<void> _launchWhatsApp(String number) async {
-  final cleaned = number.replaceAll(RegExp(r'[^0-9]'), '');
-  final uri = Uri.parse('https://wa.me/$cleaned');
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+Future<void> _launchTel(BuildContext context, String phone) async {
+  final cleaned = _sanitizePhone(phone);
+  if (cleaned.isEmpty) {
+    _toast(context, 'Phone number not available');
+    return;
   }
+
+  final uri = Uri(scheme: 'tel', path: cleaned);
+  final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (!ok) _toast(context, 'Could not open dialer');
+}
+
+Future<void> _launchWhatsApp(BuildContext context, String number) async {
+  final e164 = _normalizeToE164PK(number);
+  if (e164.isEmpty) {
+    _toast(context, 'WhatsApp number not available');
+    return;
+  }
+
+  final digits = e164.replaceAll('+', '').replaceAll(RegExp(r'[^0-9]'), '');
+  final uri = Uri.https('wa.me', '/$digits', {
+    'text': 'Hi! I saw your deal on Mighty Deals.',
+  });
+
+  final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+  if (!ok) _toast(context, 'Could not open WhatsApp');
 }

@@ -261,7 +261,8 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                       final restaurantId = _s(r['id']).trim();
 
                                       final phone = _s(r['phone']).trim();
-                                      final whatsappRaw = _s(r['whatsapp']).trim();
+                                      final whatsappRaw =
+                                          _s(r['whatsapp']).trim();
 
                                       // ✅ If whatsapp missing, still allow whatsapp icon using phone
                                       final whatsapp = whatsappRaw.isNotEmpty
@@ -321,10 +322,12 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                           // ✅ FIXED
                                           onCall: phone.isEmpty
                                               ? null
-                                              : () => _launchTel(context, phone),
+                                              : () =>
+                                                  _launchTel(context, phone),
                                           onWhatsapp: whatsapp.isEmpty
                                               ? null
-                                              : () => _launchWhatsApp(context, whatsapp),
+                                              : () => _launchWhatsApp(
+                                                  context, whatsapp),
 
                                           payEnabled: canPay,
                                           onPay: canPay
@@ -540,7 +543,7 @@ Future<void> _invokePay(
 }
 
 // =======================================================
-// UI WIDGETS (same as your existing)
+// UI WIDGETS
 // =======================================================
 
 class _PlainDarkBackground extends StatelessWidget {
@@ -681,7 +684,7 @@ class _FilterChipPill extends StatelessWidget {
 }
 
 // =======================================================
-// Deal Card (unchanged)
+// Deal Card
 // =======================================================
 
 class DealCardCleanFinal extends StatelessWidget {
@@ -788,16 +791,20 @@ class DealCardCleanFinal extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 10),
+
+                  // ✅ UPDATED: subLine visibility improved (same size, slightly darker + tiny bold)
                   Text(
                     subLine,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.68),
-                      fontSize: 13.8,
-                      height: 1.22,
+                      color: Colors.white.withOpacity(0.78), // was 0.68
+                      fontSize: 13.8, // same
+                      height: 1.22, // same
+                      fontWeight: FontWeight.w600, // new (slightly bold)
                     ),
                   ),
+
                   const SizedBox(height: 12),
                   Row(
                     children: [
