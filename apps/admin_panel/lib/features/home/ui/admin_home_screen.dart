@@ -2,8 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../notifications/ui/notifications_screen.dart';
-import '../../restaurants/ui/create_restaurant_placeholder.dart';
 import '../../orders/ui/orders_placeholder.dart';
+
+// ✅ NEW imports
+import '../../restaurants/ui/restaurants_screen.dart';
+import '../../deals/ui/deals_screen.dart';
+import '../../menu/ui/menu_screen.dart';
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -88,7 +92,7 @@ class AdminHomeScreen extends StatelessWidget {
 
                     const SizedBox(height: 18),
 
-                    // Menu Card (high contrast)
+                    // Menu Card
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white.withOpacity(0.10),
@@ -104,16 +108,46 @@ class AdminHomeScreen extends StatelessWidget {
                       ),
                       child: Column(
                         children: [
+                          // ✅ IMPORTANT CHANGE:
+                          // Create Restaurant Account -> Restaurants screen (list + create button inside)
                           _menuItem(
                             context: context,
-                            title: 'Create Restaurant Account',
+                            title: 'Restaurants',
                             icon: Icons.storefront,
                             onTap: () => Navigator.pushNamed(
                               context,
-                              CreateRestaurantPlaceholder.route,
+                              RestaurantsScreen.route,
                             ),
                           ),
+
                           Divider(height: 1, color: Colors.white.withOpacity(0.12)),
+
+                          // ✅ Deals admin
+                          _menuItem(
+                            context: context,
+                            title: 'Deals',
+                            icon: Icons.local_offer,
+                            onTap: () => Navigator.pushNamed(
+                              context,
+                              DealsAdminScreen.route,
+                            ),
+                          ),
+
+                          Divider(height: 1, color: Colors.white.withOpacity(0.12)),
+
+                          // ✅ Menu admin
+                          _menuItem(
+                            context: context,
+                            title: 'Menu Items',
+                            icon: Icons.restaurant_menu,
+                            onTap: () => Navigator.pushNamed(
+                              context,
+                              MenuAdminScreen.route,
+                            ),
+                          ),
+
+                          Divider(height: 1, color: Colors.white.withOpacity(0.12)),
+
                           _menuItem(
                             context: context,
                             title: 'Notifications',
@@ -123,7 +157,9 @@ class AdminHomeScreen extends StatelessWidget {
                               NotificationsScreen.route,
                             ),
                           ),
+
                           Divider(height: 1, color: Colors.white.withOpacity(0.12)),
+
                           _menuItem(
                             context: context,
                             title: 'Orders',
@@ -139,7 +175,6 @@ class AdminHomeScreen extends StatelessWidget {
 
                     const Spacer(),
 
-                    // Logout
                     Align(
                       alignment: Alignment.centerLeft,
                       child: SizedBox(
