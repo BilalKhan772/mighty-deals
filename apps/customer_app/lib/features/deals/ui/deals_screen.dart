@@ -269,6 +269,10 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                           ? whatsappRaw
                                           : phone;
 
+                                      // ✅ NEW: photo url for avatar
+                                      final restaurantPhotoUrl =
+                                          _s(r['photo_url']).trim();
+
                                       final rs = _tryInt(d.priceRs);
                                       final mighty = _tryInt(d.priceMighty);
 
@@ -297,6 +301,8 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                             const EdgeInsets.only(bottom: 14),
                                         child: DealCardCleanFinal(
                                           restaurantName: restaurantName,
+                                          restaurantPhotoUrl:
+                                              restaurantPhotoUrl, // ✅ ADDED
                                           dealTitle: dealTitleSafe,
                                           subLine: subLineSafe,
                                           priceRs: rs,
@@ -613,7 +619,8 @@ class _PremiumSearchBar extends StatelessWidget {
               hintStyle: TextStyle(color: Colors.white.withOpacity(0.45)),
               prefixIcon: Padding(
                 padding: const EdgeInsets.only(left: 12, right: 10),
-                child: Icon(Icons.search, color: Colors.white.withOpacity(0.75)),
+                child:
+                    Icon(Icons.search, color: Colors.white.withOpacity(0.75)),
               ),
               prefixIconConstraints: const BoxConstraints(minWidth: 46),
               suffixIcon: controller.text.isEmpty
@@ -691,6 +698,7 @@ class DealCardCleanFinal extends StatelessWidget {
   const DealCardCleanFinal({
     super.key,
     required this.restaurantName,
+    required this.restaurantPhotoUrl, // ✅ ADDED
     required this.dealTitle,
     required this.subLine,
     required this.priceRs,
@@ -704,6 +712,7 @@ class DealCardCleanFinal extends StatelessWidget {
   });
 
   final String restaurantName;
+  final String restaurantPhotoUrl; // ✅ ADDED
   final String dealTitle;
   final String subLine;
   final int? priceRs;
@@ -756,6 +765,7 @@ class DealCardCleanFinal extends StatelessWidget {
                         onTap: onRestaurantTap,
                         child: _RestaurantAvatar(
                           letter: _firstLetter(restaurantName),
+                          photoUrl: restaurantPhotoUrl, // ✅ ADDED
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -863,11 +873,18 @@ class DealCardCleanFinal extends StatelessWidget {
 }
 
 class _RestaurantAvatar extends StatelessWidget {
-  const _RestaurantAvatar({required this.letter});
+  const _RestaurantAvatar({
+    required this.letter,
+    required this.photoUrl, // ✅ ADDED
+  });
+
   final String letter;
+  final String photoUrl;
 
   @override
   Widget build(BuildContext context) {
+    final hasPhoto = photoUrl.trim().isNotEmpty;
+
     return Container(
       width: 54,
       height: 54,
@@ -877,15 +894,34 @@ class _RestaurantAvatar extends StatelessWidget {
           colors: [Color(0xFFFF4D4D), Color(0xFFFF8A3D)],
         ),
       ),
-      child: Center(
-        child: Text(
-          letter,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
+      child: ClipOval(
+        child: hasPhoto
+            ? Image.network(
+                photoUrl,
+                width: 54,
+                height: 54,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Center(
+                  child: Text(
+                    letter,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              )
+            : Center(
+                child: Text(
+                  letter,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
       ),
     );
   }

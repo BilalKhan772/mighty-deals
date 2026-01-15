@@ -8,19 +8,32 @@ class AdminAuthController extends ChangeNotifier {
   bool loading = false;
   String error = '';
 
+  bool _disposed = false;
+
+  void _safeNotify() {
+    if (_disposed) return;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
   Future<void> login(String email, String password) async {
     email = email.trim();
     error = '';
-    notifyListeners();
+    _safeNotify();
 
     if (email.isEmpty || password.isEmpty) {
       error = 'Email and password required';
-      notifyListeners();
+      _safeNotify();
       return;
     }
 
     loading = true;
-    notifyListeners();
+    _safeNotify();
 
     try {
       await _repo.loginAdmin(email: email, password: password);
@@ -28,7 +41,7 @@ class AdminAuthController extends ChangeNotifier {
       error = e.toString();
     } finally {
       loading = false;
-      notifyListeners();
+      _safeNotify();
     }
   }
 }
