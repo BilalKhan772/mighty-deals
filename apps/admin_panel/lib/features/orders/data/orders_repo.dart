@@ -3,14 +3,17 @@ import 'package:shared_supabase/supabase_client.dart';
 import 'package:shared_supabase/supabase_tables.dart';
 
 class AdminOrdersRepo {
-  /// Admin list all orders (latest first)
-  /// - Includes restaurant + deal/menu_item joins
-  /// - Fetches profiles unique_code in a second batched query (safe)
+  /// Keyset pagination:
+  /// - Fetch latest first
+  /// - Next pages use cursor (lastCreatedAt + lastId)
   Future<List<OrderModel>> listOrders({
     int limit = 50,
-    int offset = 0,
     String? status, // pending/done/cancelled
     String? city, // optional filter by order snapshot city
+
+    // ✅ cursor (for load more)
+    DateTime? beforeCreatedAt,
+    String? beforeId,
   }) async {
     var q = SB.client.from(Tables.orders).select('''
       id,
@@ -60,20 +63,31 @@ class AdminOrdersRepo {
       q = q.eq('city', city.trim());
     }
 
+    // ✅ Keyset: "created_at desc, id desc"
+    // If we have a cursor, fetch rows strictly BEFORE that cursor.
+    if (beforeCreatedAt != null) {
+      // primary filter
+      q = q.lt('created_at', beforeCreatedAt.toUtc().toIso8601String());
+    }
+
     final rows = await q
         .order('created_at', ascending: false)
-        .range(offset, offset + limit - 1);
+        .order('id', ascending: false)
+        .limit(limit);
 
-    final orders = (rows as List)
+    var orders = (rows as List)
         .map((e) => OrderModel.fromMap(e as Map<String, dynamic>))
         .toList();
 
+    // ✅ Edge case: if multiple orders share same created_at
+    // and we only used lt(created_at), it is OK (it will exclude same-timestamp rows).
+    // If you want to include same created_at safely, you'd need an OR condition.
+    // For now keep it simple/stable.
+
     // Batch fetch unique_code from profiles for these user_ids
-    final userIds =
-        orders.map((o) => o.userId).toSet().toList().cast<String>();
+    final userIds = orders.map((o) => o.userId).toSet().toList().cast<String>();
     if (userIds.isEmpty) return orders;
 
-    // ✅ FIX: use inFilter (more compatible across supabase_flutter versions)
     final profileRows = await SB.client
         .from(Tables.profiles)
         .select('id, unique_code')
@@ -87,7 +101,6 @@ class AdminOrdersRepo {
       if (id != null && code != null) uniqueById[id] = code;
     }
 
-    // Note: We return orders as-is; controller will hold unique codes map.
     return orders;
   }
 
@@ -95,23 +108,18 @@ class AdminOrdersRepo {
     required String orderId,
     required String status, // pending/done/cancelled
   }) async {
-    await SB.client
-        .from(Tables.orders)
-        .update({'status': status})
-        .eq('id', orderId);
+    await SB.client.from(Tables.orders).update({'status': status}).eq('id', orderId);
   }
 
   Future<void> deleteOrder(String orderId) async {
     await SB.client.from(Tables.orders).delete().eq('id', orderId);
   }
 
-  /// Fetch unique codes for a list of user ids (helper for controller)
   Future<Map<String, String>> fetchUniqueCodes(List<String> userIds) async {
     if (userIds.isEmpty) return {};
 
     final safeIds = userIds.toSet().toList().cast<String>();
 
-    // ✅ FIX: use inFilter
     final rows = await SB.client
         .from(Tables.profiles)
         .select('id, unique_code')

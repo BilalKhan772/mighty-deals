@@ -17,17 +17,22 @@ class AdminOrdersController extends ChangeNotifier {
   String? statusFilter; // pending/done/cancelled
   String? cityFilter;
 
-  // Pagination
-  int _offset = 0;
+  // Pagination (keyset cursor)
   static const int _limit = 50;
   bool hasMore = true;
 
+  DateTime? _cursorCreatedAt; // last item created_at
+  String? _cursorId;          // last item id (optional future tie-break)
+
   Future<void> refresh() async {
-    _offset = 0;
     hasMore = true;
     orders.clear();
     uniqueCodeByUserId = {};
     error = null;
+
+    _cursorCreatedAt = null;
+    _cursorId = null;
+
     notifyListeners();
     await loadMore();
   }
@@ -42,16 +47,23 @@ class AdminOrdersController extends ChangeNotifier {
     try {
       final batch = await _repo.listOrders(
         limit: _limit,
-        offset: _offset,
         status: statusFilter,
         city: cityFilter,
+
+        // ✅ cursor
+        beforeCreatedAt: _cursorCreatedAt,
+        beforeId: _cursorId,
       );
 
       if (batch.isEmpty) {
         hasMore = false;
       } else {
         orders.addAll(batch);
-        _offset += batch.length;
+
+        // ✅ update cursor to LAST item of the current list
+        final last = orders.last;
+        _cursorCreatedAt = last.createdAt;
+        _cursorId = last.id;
 
         // Fetch unique codes for any missing user ids (batched)
         final missingUserIds = orders
@@ -64,6 +76,9 @@ class AdminOrdersController extends ChangeNotifier {
           final codes = await _repo.fetchUniqueCodes(missingUserIds);
           uniqueCodeByUserId.addAll(codes);
         }
+
+        // If fewer than limit, likely end
+        if (batch.length < _limit) hasMore = false;
       }
     } catch (e) {
       error = e.toString();
