@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_models/order_model.dart';
+
 import '../data/orders_repo.dart';
 import '../logic/orders_controller.dart';
 import 'widgets/orders_table.dart';
-import 'package:shared_models/order_model.dart';
 
 class OrdersScreen extends StatefulWidget {
   static const route = '/orders';
@@ -69,19 +70,16 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   _kv('Order ID', o.id),
                   _kv('Created At', fmt(o.createdAt.toLocal())),
                   const Divider(),
-
                   _kv('Customer Unique ID', userCode),
                   _kv('Customer Phone', o.phone ?? ''),
                   _kv('Customer WhatsApp', o.whatsapp ?? ''),
                   _kv('Customer Address', o.address ?? ''),
                   _kv('Customer City', o.city ?? ''),
                   const Divider(),
-
                   _kv('Restaurant', restaurantName()),
                   _kv('Restaurant Phone', restaurantPhone() ?? ''),
                   _kv('Restaurant WhatsApp', restaurantWhatsApp() ?? ''),
                   const Divider(),
-
                   _kv('Item', itemName()),
                   _kv('Coins Paid', '${o.coinsPaid}'),
                   _kv('Status', o.status),
@@ -183,7 +181,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
                   onCityChanged: (v) => controller.setCityFilter(v),
                 ),
                 const SizedBox(height: 12),
-
                 if (controller.error != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
@@ -195,7 +192,6 @@ class _OrdersScreenState extends State<OrdersScreen> {
                       ],
                     ),
                   ),
-
                 Expanded(
                   child: Stack(
                     children: [
@@ -209,24 +205,43 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 12),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
+                // ✅ mobile-friendly bottom bar too (Wrap)
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isNarrow = constraints.maxWidth < 520;
+
+                    final leftText = Text(
                       'Showing: ${controller.orders.length}'
                       '${controller.hasMore ? '' : ' (end)'}',
-                    ),
-                    ElevatedButton.icon(
+                    );
+
+                    final btn = ElevatedButton.icon(
                       onPressed: (controller.isLoading || !controller.hasMore)
                           ? null
                           : controller.loadMore,
                       icon: const Icon(Icons.expand_more),
                       label: const Text('Load More'),
-                    ),
-                  ],
+                    );
+
+                    if (!isNarrow) {
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [leftText, btn],
+                      );
+                    }
+
+                    return Wrap(
+                      spacing: 12,
+                      runSpacing: 10,
+                      alignment: WrapAlignment.spaceBetween,
+                      children: [
+                        leftText,
+                        btn,
+                      ],
+                    );
+                  },
                 ),
               ],
             ),
@@ -237,7 +252,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
   }
 }
 
-class _FiltersBar extends StatelessWidget {
+// ✅ UPDATED Filters bar (FULL)
+class _FiltersBar extends StatefulWidget {
   final String? status;
   final String? city;
   final ValueChanged<String?> onStatusChanged;
@@ -251,46 +267,85 @@ class _FiltersBar extends StatelessWidget {
   });
 
   @override
+  State<_FiltersBar> createState() => _FiltersBarState();
+}
+
+class _FiltersBarState extends State<_FiltersBar> {
+  late final TextEditingController _cityCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _cityCtrl = TextEditingController(text: widget.city ?? '');
+  }
+
+  @override
+  void didUpdateWidget(covariant _FiltersBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.city != widget.city) {
+      _cityCtrl.text = widget.city ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _cityCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        const Text('Status:'),
-        const SizedBox(width: 8),
-        DropdownButton<String>(
-          value: status,
-          hint: const Text('All'),
-          items: const [
-            DropdownMenuItem(value: 'pending', child: Text('pending')),
-            DropdownMenuItem(value: 'done', child: Text('done')),
-            DropdownMenuItem(value: 'cancelled', child: Text('cancelled')),
-          ],
-          onChanged: onStatusChanged,
-        ),
-        TextButton(
-          onPressed: () => onStatusChanged(null),
-          child: const Text('Clear'),
-        ),
-        const SizedBox(width: 24),
-        const Text('City:'),
-        const SizedBox(width: 8),
-        SizedBox(
-          width: 220,
-          child: TextFormField(
-            initialValue: city ?? '',
-            decoration: const InputDecoration(
-              isDense: true,
-              hintText: 'e.g. Karachi',
-              border: OutlineInputBorder(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 650;
+
+        return Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 12,
+          runSpacing: 10,
+          children: [
+            const Text('Status:'),
+            DropdownButton<String>(
+              value: widget.status,
+              hint: const Text('All'),
+              items: const [
+                DropdownMenuItem(value: 'pending', child: Text('pending')),
+                DropdownMenuItem(value: 'done', child: Text('done')),
+                DropdownMenuItem(value: 'cancelled', child: Text('cancelled')),
+              ],
+              onChanged: widget.onStatusChanged,
             ),
-            onFieldSubmitted: (v) => onCityChanged(v.trim().isEmpty ? null : v.trim()),
-          ),
-        ),
-        const SizedBox(width: 8),
-        TextButton(
-          onPressed: () => onCityChanged(null),
-          child: const Text('Clear'),
-        ),
-      ],
+            TextButton(
+              onPressed: () => widget.onStatusChanged(null),
+              child: const Text('Clear'),
+            ),
+            const SizedBox(width: 8),
+            const Text('City:'),
+            SizedBox(
+              width: isNarrow
+                  ? (constraints.maxWidth - 40).clamp(180, 420)
+                  : 220,
+              child: TextFormField(
+                controller: _cityCtrl,
+                decoration: const InputDecoration(
+                  isDense: true,
+                  hintText: 'e.g. Karachi',
+                  border: OutlineInputBorder(),
+                ),
+                onFieldSubmitted: (v) =>
+                    widget.onCityChanged(v.trim().isEmpty ? null : v.trim()),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                _cityCtrl.clear();
+                widget.onCityChanged(null);
+              },
+              child: const Text('Clear'),
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -301,7 +356,13 @@ Widget _kv(String k, String v) {
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(width: 160, child: Text(k, style: const TextStyle(fontWeight: FontWeight.w600))),
+        SizedBox(
+          width: 160,
+          child: Text(
+            k,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
         const SizedBox(width: 8),
         Expanded(child: Text(v.isEmpty ? '-' : v)),
       ],
