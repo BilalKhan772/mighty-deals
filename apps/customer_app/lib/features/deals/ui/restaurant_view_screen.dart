@@ -178,7 +178,7 @@ class _Body extends ConsumerWidget {
 
         const SizedBox(height: 18),
 
-        // Contact Info
+        // Contact Info (AS-IT-IS)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 18),
           child: Column(
@@ -197,7 +197,8 @@ class _Body extends ConsumerWidget {
               Row(
                 children: [
                   _GlassIconButton(
-                    onTap: phone.isEmpty ? null : () => _launchTel(context, phone),
+                    onTap:
+                        phone.isEmpty ? null : () => _launchTel(context, phone),
                     icon: Icons.call,
                   ),
                   const SizedBox(width: 12),
@@ -321,66 +322,34 @@ class _MenuTab extends ConsumerWidget {
                   ? walletBalance >= requiredMighty
                   : false;
 
-              return _GlassCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name.isEmpty ? 'Item' : name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.5,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Text(
-                          rsText,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        _MightyCapsuleSimple(text: mightyText),
-                        const Spacer(),
-                        _PayWithMightyButton(
-                          enabled: canPay,
-                          onTap: canPay
-                              ? () async {
-                                  if (menuItemId.isEmpty) {
-                                    _toast(context, 'Menu item invalid');
-                                    return;
-                                  }
+              return _RedeemListCard(
+                title: name.isEmpty ? 'Item' : name,
+                subtitle: null,
+                rsText: rsText,
+                mightyText: mightyText,
+                buttonEnabled: canPay,
+                onRedeemTap: canPay
+                    ? () async {
+                        if (menuItemId.isEmpty) {
+                          _toast(context, 'Menu item invalid');
+                          return;
+                        }
 
-                                  final ok = await _confirmPay(
-                                    context,
-                                    title: 'Redeem Menu Item?',
-                                    message:
-                                        'This will deduct $requiredMighty Mighty from your wallet.',
-                                  );
-                                  if (!ok) return;
+                        final ok = await _confirmPay(
+                          context,
+                          title: 'Redeem Menu Item?',
+                          message:
+                              'This will deduct $requiredMighty Mighty from your wallet.',
+                        );
+                        if (!ok) return;
 
-                                  await _invokePay(
-                                    context,
-                                    ref,
-                                    body: {'menu_item_id': menuItemId},
-                                  );
-                                }
-                              : null,
-                          width: 160,
-                          height: 44,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                        await _invokePay(
+                          context,
+                          ref,
+                          body: {'menu_item_id': menuItemId},
+                        );
+                      }
+                    : null,
               );
             },
           );
@@ -435,6 +404,7 @@ class _DealsTab extends ConsumerWidget {
                   _s(d.title).trim().isEmpty ? 'Deal' : _s(d.title).trim();
               final desc = _s(d.description).trim();
               final subLine = desc.isNotEmpty ? desc : _s(d.category).trim();
+              final subtitle = subLine.isNotEmpty ? subLine : null;
 
               final rsText = (d.priceRs != null && d.priceRs! > 0)
                   ? 'Rs ${d.priceRs}'
@@ -451,105 +421,133 @@ class _DealsTab extends ConsumerWidget {
                   ? walletBalance >= requiredMighty
                   : false;
 
-              return _GlassCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (_s(d.tag).trim().isNotEmpty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE53935),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              _s(d.tag).toUpperCase(),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      subLine,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.70),
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Text(
-                          rsText,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        _MightyCapsuleSimple(text: mightyText),
-                        const Spacer(),
-                        _PayWithMightyButton(
-                          enabled: canPay,
-                          onTap: canPay
-                              ? () async {
-                                  if (d.id.isEmpty) {
-                                    _toast(context, 'Deal invalid');
-                                    return;
-                                  }
+              return _RedeemListCard(
+                title: title,
+                subtitle: subtitle,
+                rsText: rsText,
+                mightyText: mightyText,
+                buttonEnabled: canPay,
+                onRedeemTap: canPay
+                    ? () async {
+                        if (d.id.isEmpty) {
+                          _toast(context, 'Deal invalid');
+                          return;
+                        }
 
-                                  final ok = await _confirmPay(
-                                    context,
-                                    title: 'Redeem Deal?',
-                                    message:
-                                        'This will deduct $requiredMighty Mighty from your wallet.',
-                                  );
-                                  if (!ok) return;
+                        final ok = await _confirmPay(
+                          context,
+                          title: 'Redeem Deal?',
+                          message:
+                              'This will deduct $requiredMighty Mighty from your wallet.',
+                        );
+                        if (!ok) return;
 
-                                  await _invokePay(
-                                    context,
-                                    ref,
-                                    body: {'deal_id': d.id},
-                                  );
-                                }
-                              : null,
-                          width: 160,
-                          height: 44,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+                        await _invokePay(
+                          context,
+                          ref,
+                          body: {'deal_id': d.id},
+                        );
+                      }
+                    : null,
               );
             },
           );
         },
+      ),
+    );
+  }
+}
+
+// =======================================================
+// ✅ FINAL: Card layout (button ALWAYS on next row bottom-right)
+// =======================================================
+
+class _RedeemListCard extends StatelessWidget {
+  const _RedeemListCard({
+    required this.title,
+    required this.subtitle,
+    required this.rsText,
+    required this.mightyText,
+    required this.buttonEnabled,
+    required this.onRedeemTap,
+  });
+
+  final String title;
+  final String? subtitle;
+  final String rsText;
+  final String mightyText;
+  final bool buttonEnabled;
+  final VoidCallback? onRedeemTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+
+          // Subtitle (Deals only)
+          if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              subtitle!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.70),
+                fontSize: 14.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 12),
+
+          // ✅ Row 1: Price ONLY (Rs + Mighty capsule)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Text(
+                rsText,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(width: 10),
+              _MightyCapsuleSimple(text: mightyText),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+
+          // ✅ Row 2: Button forced to next line (bottom-right)
+          SizedBox(
+            width: double.infinity,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: _PayWithMightyButton(
+                enabled: buttonEnabled,
+                onTap: onRedeemTap,
+                width: 190,
+                height: 44,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -888,10 +886,9 @@ int? _mightyFromRs(int? rs) {
   return ((rs + (kRsPerMighty - 1)) / kRsPerMighty).floor();
 }
 
-// -------------------- NEW: Reliable launch helpers --------------------
+// -------------------- Reliable launch helpers --------------------
 
-String _sanitizePhone(String phone) =>
-    phone.replaceAll(RegExp(r'[^0-9+]'), '');
+String _sanitizePhone(String phone) => phone.replaceAll(RegExp(r'[^0-9+]'), '');
 
 // Pakistan default: 03xxxxxxxxx -> +923xxxxxxxxx
 String _normalizeToE164PK(String raw) {
