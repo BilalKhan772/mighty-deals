@@ -200,16 +200,16 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                               ref.invalidate(myOrdersProvider);
                             },
                             child: state.items.isEmpty
+                                // ✅ UPDATED EMPTY STATE (Spins-style pill message)
                                 ? ListView(
-                                    children: const [
-                                      SizedBox(height: 140),
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    children: [
+                                      const SizedBox(height: 140),
                                       Center(
-                                        child: Text(
-                                          'No deals found',
-                                          style: TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 16,
-                                          ),
+                                        child: _EmptyPillMessage(
+                                          text:
+                                              'No deals available for $city right now.',
                                         ),
                                       ),
                                     ],
@@ -563,6 +563,41 @@ class _PlainDarkBackground extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [Color(0xFF050A14), Color(0xFF02040A)],
+        ),
+      ),
+    );
+  }
+}
+
+/// ✅ NEW: Spins-style empty state pill for Deals
+class _EmptyPillMessage extends StatelessWidget {
+  const _EmptyPillMessage({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        color: kDeepNavy.withOpacity(0.78),
+        border: Border.all(color: Colors.white.withOpacity(0.12)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.35),
+            blurRadius: 22,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white.withOpacity(0.88),
+          fontSize: 14.5,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.1,
         ),
       ),
     );
