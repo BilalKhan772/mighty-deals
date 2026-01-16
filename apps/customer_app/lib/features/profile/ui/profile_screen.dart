@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/routing/route_names.dart';
 import '../../../core/notifications/push_service.dart';
@@ -37,6 +38,23 @@ class ProfileScreen extends ConsumerWidget {
     'Swabi',
     'Swat',
   ];
+
+  // ✅ Support link
+  static final Uri _supportUri =
+      Uri.parse('https://mighty-deal-support.netlify.app/');
+
+  Future<void> _openSupport(BuildContext context) async {
+    final ok = await launchUrl(
+      _supportUri,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open support page')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -86,6 +104,14 @@ class ProfileScreen extends ConsumerWidget {
           const SizedBox(width: 6),
         ],
       ),
+
+      // ✅ Capsule Support button at bottom-right
+      floatingActionButton: _SupportPillFab(
+        text: 'Support',
+        onPressed: () => _openSupport(context),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -111,7 +137,7 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
           data: (p) {
-            // ✅ NEW: if logged out / session gone, auto redirect to login (no flash)
+            // ✅ if logged out / session gone, auto redirect to login (no flash)
             if (p == null) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!context.mounted) return;
@@ -192,7 +218,7 @@ class ProfileScreen extends ConsumerWidget {
                                 await PushService.instance.removeMyTokens();
                               } catch (_) {}
 
-                              // ✅ 2) Sign out first (so router/guards now consider user logged out)
+                              // ✅ 2) Sign out
                               try {
                                 await Supabase.instance.client.auth.signOut();
                               } catch (_) {}
@@ -200,7 +226,7 @@ class ProfileScreen extends ConsumerWidget {
                               // ✅ 3) Invalidate providers
                               _invalidateAll(ref);
 
-                              // ✅ 4) Now navigate to login (guaranteed)
+                              // ✅ 4) Navigate to login
                               if (!context.mounted) return;
                               context.go(RouteNames.login);
                             },
@@ -218,7 +244,7 @@ class ProfileScreen extends ConsumerWidget {
                           ),
                         ),
 
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 24),
                       ],
                     ),
                   ),
@@ -341,7 +367,6 @@ class ProfileScreen extends ConsumerWidget {
                             ),
                           ),
                           const SizedBox(height: 10),
-
                           _FlatField(
                             label: 'Phone',
                             controller: phoneC,
@@ -350,7 +375,6 @@ class ProfileScreen extends ConsumerWidget {
                             maxLines: 1,
                           ),
                           const SizedBox(height: 12),
-
                           _FlatField(
                             label: 'WhatsApp',
                             controller: waC,
@@ -359,7 +383,6 @@ class ProfileScreen extends ConsumerWidget {
                             maxLines: 1,
                           ),
                           const SizedBox(height: 12),
-
                           _FlatField(
                             label: 'Address',
                             controller: addrC,
@@ -368,7 +391,6 @@ class ProfileScreen extends ConsumerWidget {
                             maxLines: 2,
                           ),
                           const SizedBox(height: 12),
-
                           _FlatCity(
                             label: 'City',
                             value: city.isEmpty ? null : city,
@@ -376,9 +398,7 @@ class ProfileScreen extends ConsumerWidget {
                             onChanged: (v) =>
                                 setSheetState(() => city = v ?? ''),
                           ),
-
                           const SizedBox(height: 16),
-
                           SizedBox(
                             height: 56,
                             child: ElevatedButton(
@@ -533,6 +553,74 @@ class _PrimaryButton extends StatelessWidget {
           fontSize: 16,
           fontWeight: FontWeight.w800,
           letterSpacing: -0.2,
+        ),
+      ),
+    );
+  }
+}
+
+/// ✅ Capsule Support FAB (icon + text)
+class _SupportPillFab extends StatelessWidget {
+  const _SupportPillFab({
+    required this.text,
+    required this.onPressed,
+  });
+
+  final String text;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      elevation: 0,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(999),
+        child: Ink(
+          height: 44, // ✅ small pill
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            gradient: const LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Color(0xFF06B6D4),
+                Color(0xFF0B7C9D),
+              ],
+            ),
+            border: Border.all(
+              color: Color.fromRGBO(255, 255, 255, 0.12),
+            ),
+            boxShadow: const [
+              BoxShadow(
+                color: Color.fromRGBO(0, 0, 0, 0.30),
+                blurRadius: 18,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.support_agent,
+                color: Colors.white,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                text,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14.5,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
