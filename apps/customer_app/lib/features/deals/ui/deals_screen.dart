@@ -190,6 +190,14 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                           ),
                         ),
                         data: (state) {
+                          // ✅ NEW: better empty message for category vs city
+                          final selectedCategory = query.category.trim();
+                          final isAll = selectedCategory == 'All';
+
+                          final String emptyText = isAll
+                              ? 'No deals available for $city right now.'
+                              : 'No $selectedCategory deals available in $city yet.';
+
                           return RefreshIndicator(
                             onRefresh: () async {
                               await ref
@@ -200,7 +208,6 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                               ref.invalidate(myOrdersProvider);
                             },
                             child: state.items.isEmpty
-                                // ✅ UPDATED EMPTY STATE (Spins-style pill message)
                                 ? ListView(
                                     physics:
                                         const AlwaysScrollableScrollPhysics(),
@@ -208,8 +215,7 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                       const SizedBox(height: 140),
                                       Center(
                                         child: _EmptyPillMessage(
-                                          text:
-                                              'No deals available for $city right now.',
+                                          text: emptyText,
                                         ),
                                       ),
                                     ],
@@ -302,7 +308,7 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                         child: DealCardCleanFinal(
                                           restaurantName: restaurantName,
                                           restaurantPhotoUrl:
-                                              restaurantPhotoUrl, // ✅ ADDED
+                                              restaurantPhotoUrl,
                                           dealTitle: dealTitleSafe,
                                           subLine: subLineSafe,
                                           priceRs: rs,
@@ -324,8 +330,6 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                                     '${RouteNames.restaurant}/$restaurantId',
                                                   );
                                                 },
-
-                                          // ✅ FIXED
                                           onCall: phone.isEmpty
                                               ? null
                                               : () =>
@@ -334,7 +338,6 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                               ? null
                                               : () => _launchWhatsApp(
                                                   context, whatsapp),
-
                                           payEnabled: canPay,
                                           onPay: canPay
                                               ? () async {
@@ -569,7 +572,7 @@ class _PlainDarkBackground extends StatelessWidget {
   }
 }
 
-/// ✅ NEW: Spins-style empty state pill for Deals
+/// ✅ Spins-style empty state pill for Deals
 class _EmptyPillMessage extends StatelessWidget {
   const _EmptyPillMessage({required this.text});
   final String text;
@@ -726,14 +729,14 @@ class _FilterChipPill extends StatelessWidget {
 }
 
 // =======================================================
-// Deal Card
+// Deal Card (unchanged)
 // =======================================================
 
 class DealCardCleanFinal extends StatelessWidget {
   const DealCardCleanFinal({
     super.key,
     required this.restaurantName,
-    required this.restaurantPhotoUrl, // ✅ ADDED
+    required this.restaurantPhotoUrl,
     required this.dealTitle,
     required this.subLine,
     required this.priceRs,
@@ -747,7 +750,7 @@ class DealCardCleanFinal extends StatelessWidget {
   });
 
   final String restaurantName;
-  final String restaurantPhotoUrl; // ✅ ADDED
+  final String restaurantPhotoUrl;
   final String dealTitle;
   final String subLine;
   final int? priceRs;
@@ -800,7 +803,7 @@ class DealCardCleanFinal extends StatelessWidget {
                         onTap: onRestaurantTap,
                         child: _RestaurantAvatar(
                           letter: _firstLetter(restaurantName),
-                          photoUrl: restaurantPhotoUrl, // ✅ ADDED
+                          photoUrl: restaurantPhotoUrl,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -836,20 +839,17 @@ class DealCardCleanFinal extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 10),
-
-                  // ✅ UPDATED: subLine visibility improved (same size, slightly darker + tiny bold)
                   Text(
                     subLine,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.78), // was 0.68
-                      fontSize: 13.8, // same
-                      height: 1.22, // same
-                      fontWeight: FontWeight.w600, // new (slightly bold)
+                      color: Colors.white.withOpacity(0.78),
+                      fontSize: 13.8,
+                      height: 1.22,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -910,7 +910,7 @@ class DealCardCleanFinal extends StatelessWidget {
 class _RestaurantAvatar extends StatelessWidget {
   const _RestaurantAvatar({
     required this.letter,
-    required this.photoUrl, // ✅ ADDED
+    required this.photoUrl,
   });
 
   final String letter;
