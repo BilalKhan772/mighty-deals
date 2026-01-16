@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_models/profile_model.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/profile_repo.dart';
 
@@ -11,8 +12,20 @@ import '../../../core/notifications/push_service.dart';
 
 final profileRepoProvider = Provider<ProfileRepo>((ref) => ProfileRepo());
 
-final myProfileProvider = FutureProvider<ProfileModel>((ref) async {
-  return ref.read(profileRepoProvider).getMyProfile();
+/// ✅ Change: FutureProvider<ProfileModel?> (nullable)
+/// If user is logged out, return null instead of throwing.
+final myProfileProvider = FutureProvider<ProfileModel?>((ref) async {
+  final session = Supabase.instance.client.auth.currentSession;
+  if (session == null) return null;
+
+  try {
+    return await ref.read(profileRepoProvider).getMyProfile();
+  } catch (_) {
+    // If anything auth-related happens during transition, fail gracefully
+    final stillSession = Supabase.instance.client.auth.currentSession;
+    if (stillSession == null) return null;
+    rethrow;
+  }
 });
 
 final profileUpdateControllerProvider =

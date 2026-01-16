@@ -111,6 +111,18 @@ class ProfileScreen extends ConsumerWidget {
             ),
           ),
           data: (p) {
+            // ✅ NEW: if logged out / session gone, auto redirect to login (no flash)
+            if (p == null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!context.mounted) return;
+                context.go(RouteNames.login);
+              });
+
+              return const SafeArea(
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+
             final isSaving = updateState.isLoading;
 
             final phoneValue =
@@ -175,12 +187,20 @@ class ProfileScreen extends ConsumerWidget {
                                   await _showLogoutDialog(context);
                               if (shouldLogout != true) return;
 
-                              // ✅ IMPORTANT: delete token WHILE still logged in (RLS needs auth)
-                              await PushService.instance.removeMyTokens();
+                              // ✅ 1) Remove push tokens WHILE still logged in (RLS needs auth)
+                              try {
+                                await PushService.instance.removeMyTokens();
+                              } catch (_) {}
 
-                              await Supabase.instance.client.auth.signOut();
+                              // ✅ 2) Sign out first (so router/guards now consider user logged out)
+                              try {
+                                await Supabase.instance.client.auth.signOut();
+                              } catch (_) {}
+
+                              // ✅ 3) Invalidate providers
                               _invalidateAll(ref);
 
+                              // ✅ 4) Now navigate to login (guaranteed)
                               if (!context.mounted) return;
                               context.go(RouteNames.login);
                             },
@@ -311,7 +331,6 @@ class ProfileScreen extends ConsumerWidget {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // ✅ Clean header text only (no divider/line)
                           const Text(
                             'Edit Profile',
                             style: TextStyle(
