@@ -80,6 +80,15 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
     super.dispose();
   }
 
+  void _openInfoSheet(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierColor: Colors.black.withOpacity(0.65),
+      builder: (_) => const _DealsInfoDialog(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final cityAsync = ref.watch(currentUserCityProvider);
@@ -101,16 +110,27 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(18, 14, 18, 6),
-                  child: Text(
-                    'Mighty Deals',
-                    style: TextStyle(
-                      fontSize: 40,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.8,
-                      color: Colors.white,
-                    ),
+                // ✅ Title row + Info (i) on right
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 14, 18, 6),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Mighty Deals',
+                          style: TextStyle(
+                            fontSize: 40,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.8,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      _InfoIconButton(
+                        onTap: () => _openInfoSheet(context),
+                      ),
+                    ],
                   ),
                 ),
 
@@ -190,7 +210,7 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                           ),
                         ),
                         data: (state) {
-                          // ✅ NEW: better empty message for category vs city
+                          // ✅ better empty message for category vs city
                           final selectedCategory = query.category.trim();
                           final isAll = selectedCategory == 'All';
 
@@ -270,12 +290,9 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                       final whatsappRaw =
                                           _s(r['whatsapp']).trim();
 
-                                      // ✅ If whatsapp missing, still allow whatsapp icon using phone
-                                      final whatsapp = whatsappRaw.isNotEmpty
-                                          ? whatsappRaw
-                                          : phone;
+                                      final whatsapp =
+                                          whatsappRaw.isNotEmpty ? whatsappRaw : phone;
 
-                                      // ✅ NEW: photo url for avatar
                                       final restaurantPhotoUrl =
                                           _s(r['photo_url']).trim();
 
@@ -397,14 +414,13 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
   String _sanitizePhone(String phone) =>
       phone.replaceAll(RegExp(r'[^0-9+]'), '');
 
-  // ✅ default Pakistan conversion: 0300... -> +92300...
   String _normalizeToE164PK(String raw) {
     var p = _sanitizePhone(raw);
     if (p.isEmpty) return p;
     if (p.startsWith('+')) return p;
 
     if (p.startsWith('03')) {
-      p = p.substring(1); // remove leading 0
+      p = p.substring(1);
       return '+92$p';
     }
 
@@ -567,6 +583,256 @@ class _PlainDarkBackground extends StatelessWidget {
           end: Alignment.bottomCenter,
           colors: [Color(0xFF050A14), Color(0xFF02040A)],
         ),
+      ),
+    );
+  }
+}
+
+/// ✅ NEW: Top-right info button (accent filled like Redeem button)
+class _InfoIconButton extends StatelessWidget {
+  const _InfoIconButton({required this.onTap});
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: const LinearGradient(colors: [kAccentA, kAccentB]),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.30),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: const Center(
+            child: Icon(
+              Icons.info_outline,
+              size: 18,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// ✅ NEW: Dark-navy single color dialog (no weird background)
+class _DealsInfoDialog extends StatelessWidget {
+  const _DealsInfoDialog();
+
+  static const _panel = Color(0xFF071A2B); // dark navy panel
+  static const _card = Color(0xFF062033); // slightly different but same family
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 360),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          child: Material(
+            color: Colors.transparent,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: _panel, // ✅ single dark navy
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: Colors.white.withOpacity(0.12)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.45),
+                        blurRadius: 26,
+                        offset: const Offset(0, 16),
+                      ),
+                    ],
+                  ),
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Header
+                      Row(
+                        children: [
+                          Container(
+                            width: 28,
+                            height: 28,
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: [kAccentA, kAccentB],
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              'Information',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.2,
+                              ),
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () => Navigator.pop(context),
+                            borderRadius: BorderRadius.circular(999),
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white.withOpacity(0.06),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.12),
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.close,
+                                size: 18,
+                                color: Colors.white.withOpacity(0.85),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      _InfoCard(
+                        bg: _card,
+                        title: 'Redeem with Mighty',
+                        body:
+                            'When you redeem a deal using Mighty points, your order is placed immediately.',
+                      ),
+                      const SizedBox(height: 10),
+                      _InfoCard(
+                        bg: _card,
+                        title: 'Insufficient balance',
+                        body:
+                            'If your wallet does not have enough Mighty points, the “Redeem with Mighty” button will be disabled (you won’t be able to tap it).',
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      SizedBox(
+                        height: 48,
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(context),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF06B6D4),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          child: const Text(
+                            'OK',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.1,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  const _InfoCard({
+    required this.bg,
+    required this.title,
+    required this.body,
+  });
+
+  final Color bg;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.10)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(width: 2),
+          Container(
+            width: 22,
+            height: 22,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(colors: [kAccentA, kAccentB]),
+            ),
+            child: const Icon(
+              Icons.check,
+              size: 14,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  body,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.82),
+                    height: 1.25,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
