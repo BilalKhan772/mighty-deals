@@ -19,6 +19,27 @@ const Color kDeepNavy = Color(0xFF01203D);
 const Color kAccentA = Color(0xFF10B7C7);
 const Color kAccentB = Color(0xFF0B7C9D);
 
+/// ✅ Smooth scroll behavior (Android + iOS consistent, no glow)
+class _SmoothScrollBehavior extends MaterialScrollBehavior {
+  const _SmoothScrollBehavior();
+
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) {
+    // Removes the default Android glow without affecting scrolling
+    return child;
+  }
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    // Makes scrolling feel smoother (especially on Android)
+    return const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+  }
+}
+
 // ---------------- Debouncer ----------------
 class _Debouncer {
   _Debouncer(this.ms);
@@ -66,7 +87,8 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
   void initState() {
     super.initState();
     _scroll.addListener(() {
-      if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 250) {
+      // ✅ smoother + more reliable pagination trigger
+      if (_scroll.hasClients && _scroll.position.extentAfter < 250) {
         ref.read(dealsControllerProvider.notifier).loadMore();
       }
     });
@@ -159,22 +181,28 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                 // Chips
                 SizedBox(
                   height: 46,
-                  child: ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _categories.length,
-                    separatorBuilder: (_, __) => const SizedBox(width: 10),
-                    itemBuilder: (_, i) {
-                      final c = _categories[i];
-                      final selected = query.category == c;
-                      return _FilterChipPill(
-                        text: c,
-                        selected: selected,
-                        onTap: () => ref
-                            .read(dealsControllerProvider.notifier)
-                            .setCategory(c),
-                      );
-                    },
+                  child: ScrollConfiguration(
+                    behavior: const _SmoothScrollBehavior(),
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
+                      itemCount: _categories.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                      itemBuilder: (_, i) {
+                        final c = _categories[i];
+                        final selected = query.category == c;
+                        return _FilterChipPill(
+                          text: c,
+                          selected: selected,
+                          onTap: () => ref
+                              .read(dealsControllerProvider.notifier)
+                              .setCategory(c),
+                        );
+                      },
+                    ),
                   ),
                 ),
 
@@ -218,175 +246,187 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                               ? 'No deals available for $city right now.'
                               : 'No $selectedCategory deals available in $city yet.';
 
-                          return RefreshIndicator(
-                            onRefresh: () async {
-                              await ref
-                                  .read(dealsControllerProvider.notifier)
-                                  .refresh();
-                              ref.invalidate(myWalletProvider);
-                              ref.invalidate(myLedgerProvider);
-                              ref.invalidate(myOrdersProvider);
-                            },
-                            child: state.items.isEmpty
-                                ? ListView(
-                                    physics:
-                                        const AlwaysScrollableScrollPhysics(),
-                                    children: [
-                                      const SizedBox(height: 140),
-                                      Center(
-                                        child: _EmptyPillMessage(
-                                          text: emptyText,
-                                        ),
+                          return ScrollConfiguration(
+                            behavior: const _SmoothScrollBehavior(),
+                            child: RefreshIndicator(
+                              onRefresh: () async {
+                                await ref
+                                    .read(dealsControllerProvider.notifier)
+                                    .refresh();
+                                ref.invalidate(myWalletProvider);
+                                ref.invalidate(myLedgerProvider);
+                                ref.invalidate(myOrdersProvider);
+                              },
+                              child: state.items.isEmpty
+                                  ? ListView(
+                                      physics: const BouncingScrollPhysics(
+                                        parent: AlwaysScrollableScrollPhysics(),
                                       ),
-                                    ],
-                                  )
-                                : ListView.builder(
-                                    controller: _scroll,
-                                    padding: const EdgeInsets.fromLTRB(
-                                      16,
-                                      6,
-                                      16,
-                                      20,
-                                    ),
-                                    itemCount: state.items.length + 1,
-                                    itemBuilder: (_, i) {
-                                      if (i == state.items.length) {
-                                        if (state.isLoadingMore) {
-                                          return const Padding(
-                                            padding: EdgeInsets.all(16),
-                                            child: Center(
-                                              child:
-                                                  CircularProgressIndicator(),
-                                            ),
-                                          );
-                                        }
-                                        if (!state.hasMore) {
-                                          return const Padding(
-                                            padding: EdgeInsets.all(18),
-                                            child: Center(
-                                              child: Text(
-                                                'No more deals',
-                                                style: TextStyle(
-                                                  color: Colors.white54,
-                                                ),
+                                      children: [
+                                        const SizedBox(height: 140),
+                                        Center(
+                                          child: _EmptyPillMessage(
+                                            text: emptyText,
+                                          ),
+                                        ),
+                                      ],
+                                    )
+                                  : ListView.builder(
+                                      controller: _scroll,
+                                      physics: const BouncingScrollPhysics(
+                                        parent: AlwaysScrollableScrollPhysics(),
+                                      ),
+                                      cacheExtent:
+                                          900, // ✅ helps smooth scrolling
+                                      padding: const EdgeInsets.fromLTRB(
+                                        16,
+                                        6,
+                                        16,
+                                        20,
+                                      ),
+                                      itemCount: state.items.length + 1,
+                                      itemBuilder: (_, i) {
+                                        if (i == state.items.length) {
+                                          if (state.isLoadingMore) {
+                                            return const Padding(
+                                              padding: EdgeInsets.all(16),
+                                              child: Center(
+                                                child:
+                                                    CircularProgressIndicator(),
                                               ),
-                                            ),
-                                          );
-                                        }
-                                        return const SizedBox(height: 14);
-                                      }
-
-                                      final d = state.items[i];
-                                      final r = d.restaurant ?? {};
-
-                                      final restaurantName =
-                                          _s(r['name']).trim().isNotEmpty
-                                              ? _s(r['name']).trim()
-                                              : 'Restaurant';
-
-                                      final restaurantId = _s(r['id']).trim();
-
-                                      final phone = _s(r['phone']).trim();
-                                      final whatsappRaw =
-                                          _s(r['whatsapp']).trim();
-
-                                      final whatsapp =
-                                          whatsappRaw.isNotEmpty ? whatsappRaw : phone;
-
-                                      final restaurantPhotoUrl =
-                                          _s(r['photo_url']).trim();
-
-                                      final rs = _tryInt(d.priceRs);
-                                      final mighty = _tryInt(d.priceMighty);
-
-                                      final dealTitleSafe =
-                                          _s(d.title).trim().isEmpty
-                                              ? 'Deal'
-                                              : _s(d.title).trim();
-
-                                      final descSafe = _s(d.description).trim();
-                                      final catSafe = _s(d.category).trim();
-
-                                      final subLineSafe =
-                                          descSafe.isEmpty ? catSafe : descSafe;
-
-                                      final int? requiredMighty =
-                                          (mighty != null && mighty > 0)
-                                              ? mighty
-                                              : null;
-
-                                      final bool canPay = requiredMighty != null
-                                          ? walletBalance >= requiredMighty
-                                          : false;
-
-                                      return Padding(
-                                        padding:
-                                            const EdgeInsets.only(bottom: 14),
-                                        child: DealCardCleanFinal(
-                                          restaurantName: restaurantName,
-                                          restaurantPhotoUrl:
-                                              restaurantPhotoUrl,
-                                          dealTitle: dealTitleSafe,
-                                          subLine: subLineSafe,
-                                          priceRs: rs,
-                                          mightyAmount: mighty,
-                                          onTap: () {
-                                            Navigator.of(context).push(
-                                              MaterialPageRoute(
-                                                builder: (_) =>
-                                                    DealDetailScreen(
-                                                  dealId: d.id,
+                                            );
+                                          }
+                                          if (!state.hasMore) {
+                                            return const Padding(
+                                              padding: EdgeInsets.all(18),
+                                              child: Center(
+                                                child: Text(
+                                                  'No more deals',
+                                                  style: TextStyle(
+                                                    color: Colors.white54,
+                                                  ),
                                                 ),
                                               ),
                                             );
-                                          },
-                                          onRestaurantTap: restaurantId.isEmpty
-                                              ? null
-                                              : () {
-                                                  context.push(
-                                                    '${RouteNames.restaurant}/$restaurantId',
-                                                  );
-                                                },
-                                          onCall: phone.isEmpty
-                                              ? null
-                                              : () =>
-                                                  _launchTel(context, phone),
-                                          onWhatsapp: whatsapp.isEmpty
-                                              ? null
-                                              : () => _launchWhatsApp(
-                                                  context, whatsapp),
-                                          payEnabled: canPay,
-                                          onPay: canPay
-                                              ? () async {
-                                                  final ok = await _confirmPay(
-                                                    context,
-                                                    title: 'Redeem Deal?',
-                                                    message:
-                                                        'This will deduct $requiredMighty Mighty from your wallet.',
-                                                  );
-                                                  if (!ok) return;
+                                          }
+                                          return const SizedBox(height: 14);
+                                        }
 
-                                                  await _invokePay(
-                                                    context,
-                                                    ref,
-                                                    body: {'deal_id': d.id},
-                                                  );
-                                                }
-                                              : () {
-                                                  if (requiredMighty == null) {
-                                                    _toast(context,
-                                                        'Invalid Mighty price for this deal.');
-                                                  } else {
-                                                    _toast(
+                                        final d = state.items[i];
+                                        final r = d.restaurant ?? {};
+
+                                        final restaurantName =
+                                            _s(r['name']).trim().isNotEmpty
+                                                ? _s(r['name']).trim()
+                                                : 'Restaurant';
+
+                                        final restaurantId = _s(r['id']).trim();
+
+                                        final phone = _s(r['phone']).trim();
+                                        final whatsappRaw =
+                                            _s(r['whatsapp']).trim();
+
+                                        final whatsapp = whatsappRaw.isNotEmpty
+                                            ? whatsappRaw
+                                            : phone;
+
+                                        final restaurantPhotoUrl =
+                                            _s(r['photo_url']).trim();
+
+                                        final rs = _tryInt(d.priceRs);
+                                        final mighty = _tryInt(d.priceMighty);
+
+                                        final dealTitleSafe =
+                                            _s(d.title).trim().isEmpty
+                                                ? 'Deal'
+                                                : _s(d.title).trim();
+
+                                        final descSafe =
+                                            _s(d.description).trim();
+                                        final catSafe = _s(d.category).trim();
+
+                                        final subLineSafe =
+                                            descSafe.isEmpty ? catSafe : descSafe;
+
+                                        final int? requiredMighty =
+                                            (mighty != null && mighty > 0)
+                                                ? mighty
+                                                : null;
+
+                                        final bool canPay =
+                                            requiredMighty != null
+                                                ? walletBalance >= requiredMighty
+                                                : false;
+
+                                        return Padding(
+                                          padding:
+                                              const EdgeInsets.only(bottom: 14),
+                                          child: DealCardCleanFinal(
+                                            restaurantName: restaurantName,
+                                            restaurantPhotoUrl:
+                                                restaurantPhotoUrl,
+                                            dealTitle: dealTitleSafe,
+                                            subLine: subLineSafe,
+                                            priceRs: rs,
+                                            mightyAmount: mighty,
+                                            onTap: () {
+                                              Navigator.of(context).push(
+                                                MaterialPageRoute(
+                                                  builder: (_) =>
+                                                      DealDetailScreen(
+                                                    dealId: d.id,
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                            onRestaurantTap: restaurantId.isEmpty
+                                                ? null
+                                                : () {
+                                                    context.push(
+                                                      '${RouteNames.restaurant}/$restaurantId',
+                                                    );
+                                                  },
+                                            onCall: phone.isEmpty
+                                                ? null
+                                                : () =>
+                                                    _launchTel(context, phone),
+                                            onWhatsapp: whatsapp.isEmpty
+                                                ? null
+                                                : () => _launchWhatsApp(
+                                                    context, whatsapp),
+                                            payEnabled: canPay,
+                                            onPay: canPay
+                                                ? () async {
+                                                    final ok = await _confirmPay(
                                                       context,
-                                                      'Insufficient balance: need $requiredMighty Mighty.',
+                                                      title: 'Redeem Deal?',
+                                                      message:
+                                                          'This will deduct $requiredMighty Mighty from your wallet.',
+                                                    );
+                                                    if (!ok) return;
+
+                                                    await _invokePay(
+                                                      context,
+                                                      ref,
+                                                      body: {'deal_id': d.id},
                                                     );
                                                   }
-                                                },
-                                        ),
-                                      );
-                                    },
-                                  ),
+                                                : () {
+                                                    if (requiredMighty == null) {
+                                                      _toast(context,
+                                                          'Invalid Mighty price for this deal.');
+                                                    } else {
+                                                      _toast(
+                                                        context,
+                                                        'Insufficient balance: need $requiredMighty Mighty.',
+                                                      );
+                                                    }
+                                                  },
+                                          ),
+                                        );
+                                      },
+                                    ),
+                            ),
                           );
                         },
                       );

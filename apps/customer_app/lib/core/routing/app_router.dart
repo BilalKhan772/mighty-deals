@@ -10,8 +10,10 @@ import 'route_names.dart';
 
 final appRouter = GoRouter(
   initialLocation: RouteNames.home,
+
   redirect: (context, state) {
     final session = Supabase.instance.client.auth.currentSession;
+
     final isAuthRoute = state.matchedLocation == RouteNames.login ||
         state.matchedLocation == RouteNames.signup;
 
@@ -19,6 +21,7 @@ final appRouter = GoRouter(
     if (session != null && isAuthRoute) return RouteNames.home;
     return null;
   },
+
   routes: [
     GoRoute(
       path: RouteNames.login,
@@ -32,8 +35,6 @@ final appRouter = GoRouter(
       path: RouteNames.home,
       builder: (_, __) => const HomeShell(),
     ),
-
-    // ✅ Restaurant profile route
     GoRoute(
       path: '${RouteNames.restaurant}/:id',
       builder: (context, state) {

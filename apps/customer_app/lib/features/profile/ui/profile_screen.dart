@@ -1,4 +1,5 @@
 // apps/customer_app/lib/features/profile/ui/profile_screen.dart
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
@@ -50,9 +51,7 @@ class ProfileScreen extends ConsumerWidget {
     );
 
     if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open support page')),
-      );
+      _showTopMessage(context, 'Could not open support page', isError: true);
     }
   }
 
@@ -65,15 +64,11 @@ class ProfileScreen extends ConsumerWidget {
       next.whenOrNull(
         data: (_) {
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile updated ✅')),
-          );
+          _showTopMessage(context, 'Profile updated ✅');
         },
         error: (e, _) {
           if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Update failed: $e')),
-          );
+          _showTopMessage(context, 'Update failed: $e', isError: true);
         },
       );
     });
@@ -412,9 +407,10 @@ class ProfileScreen extends ConsumerWidget {
                                     wa.isEmpty ||
                                     addr.isEmpty ||
                                     c.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text('Please fill all fields')),
+                                  _showTopMessage(
+                                    context,
+                                    'Please fill all fields',
+                                    isError: true,
                                   );
                                   return;
                                 }
@@ -461,6 +457,32 @@ class ProfileScreen extends ConsumerWidget {
       },
     );
   }
+}
+
+/// ✅ Top message (slides from top) – replaces SnackBar without breaking UI
+void _showTopMessage(
+  BuildContext context,
+  String message, {
+  bool isError = false,
+}) {
+  final overlay = Overlay.of(context);
+  if (overlay == null) return;
+
+  late OverlayEntry entry;
+
+  entry = OverlayEntry(
+    builder: (ctx) {
+      return _TopMessageOverlay(
+        message: message,
+        isError: isError,
+        onClose: () {
+          if (entry.mounted) entry.remove();
+        },
+      );
+    },
+  );
+
+  overlay.insert(entry);
 }
 
 // -------------------- Profile UI tiles --------------------
@@ -578,7 +600,7 @@ class _SupportPillFab extends StatelessWidget {
         onTap: onPressed,
         borderRadius: BorderRadius.circular(999),
         child: Ink(
-          height: 44, // ✅ small pill
+          height: 44,
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(999),
@@ -769,6 +791,129 @@ class _FlatCity extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Overlay widget that animates from top
+class _TopMessageOverlay extends StatefulWidget {
+  const _TopMessageOverlay({
+    required this.message,
+    required this.isError,
+    required this.onClose,
+  });
+
+  final String message;
+  final bool isError;
+  final VoidCallback onClose;
+
+  @override
+  State<_TopMessageOverlay> createState() => _TopMessageOverlayState();
+}
+
+class _TopMessageOverlayState extends State<_TopMessageOverlay> {
+  bool _show = false;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Start animation next frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _show = true);
+
+      _timer = Timer(const Duration(seconds: 2), () async {
+        if (!mounted) return;
+        setState(() => _show = false);
+        await Future.delayed(const Duration(milliseconds: 220));
+        widget.onClose();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.of(context).padding.top;
+
+    return IgnorePointer(
+      ignoring: true,
+      child: Stack(
+        children: [
+          Positioned(
+            left: 16,
+            right: 16,
+            top: top + 10,
+            child: AnimatedSlide(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              offset: _show ? Offset.zero : const Offset(0, -0.25),
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 180),
+                opacity: _show ? 1 : 0,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: widget.isError
+                              ? const Color(0xFF2A0F16)
+                              : const Color(0xFF0B1220),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: const Color.fromRGBO(255, 255, 255, 0.12),
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color.fromRGBO(0, 0, 0, 0.35),
+                              blurRadius: 18,
+                              offset: Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              widget.isError
+                                  ? Icons.error_outline
+                                  : Icons.check_circle_outline,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 10),
+                            Flexible(
+                              child: Text(
+                                widget.message,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.1,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
