@@ -8,6 +8,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/routing/route_names.dart';
+import '../../../core/widgets/no_internet_view.dart'; // ✅ ADD
+import '../../../core/network/network_status.dart'; // ✅ ADD
 import '../../wallet/logic/wallet_controller.dart';
 import '../logic/deals_controller.dart';
 import 'deal_detail_screen.dart';
@@ -212,12 +214,20 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                   child: cityAsync.when(
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
+
+                    // ✅ CHANGED: NoInternetView instead of raw error text
                     error: (e, _) => Center(
-                      child: Text(
-                        e.toString(),
-                        style: const TextStyle(color: Colors.white70),
+                      child: NoInternetView(
+                        onRetry: () {
+                          ref.invalidate(currentUserCityProvider);
+                          ref.invalidate(dealsControllerProvider);
+                          ref.invalidate(dealsQueryProvider);
+                        },
+                        title: "Can't load city",
+                        message: "Please connect to internet and try again.",
                       ),
                     ),
+
                     data: (city) {
                       if (city.trim().isEmpty) {
                         return const Center(
@@ -231,12 +241,23 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                       return dealsStateAsync.when(
                         loading: () =>
                             const Center(child: CircularProgressIndicator()),
+
+                        // ✅ CHANGED: NoInternetView instead of raw error text
                         error: (e, _) => Center(
-                          child: Text(
-                            e.toString(),
-                            style: const TextStyle(color: Colors.white70),
+                          child: NoInternetView(
+                            onRetry: () async {
+                              await ref
+                                  .read(dealsControllerProvider.notifier)
+                                  .refresh();
+                              ref.invalidate(myWalletProvider);
+                              ref.invalidate(myLedgerProvider);
+                              ref.invalidate(myOrdersProvider);
+                            },
+                            title: "Can't load deals",
+                            message: "Please connect to internet and try again.",
                           ),
                         ),
+
                         data: (state) {
                           // ✅ better empty message for category vs city
                           final selectedCategory = query.category.trim();
@@ -276,8 +297,7 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                       physics: const BouncingScrollPhysics(
                                         parent: AlwaysScrollableScrollPhysics(),
                                       ),
-                                      cacheExtent:
-                                          900, // ✅ helps smooth scrolling
+                                      cacheExtent: 900, // ✅ helps smooth scrolling
                                       padding: const EdgeInsets.fromLTRB(
                                         16,
                                         6,
@@ -291,8 +311,7 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                             return const Padding(
                                               padding: EdgeInsets.all(16),
                                               child: Center(
-                                                child:
-                                                    CircularProgressIndicator(),
+                                                child: CircularProgressIndicator(),
                                               ),
                                             );
                                           }
@@ -323,12 +342,10 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                         final restaurantId = _s(r['id']).trim();
 
                                         final phone = _s(r['phone']).trim();
-                                        final whatsappRaw =
-                                            _s(r['whatsapp']).trim();
+                                        final whatsappRaw = _s(r['whatsapp']).trim();
 
-                                        final whatsapp = whatsappRaw.isNotEmpty
-                                            ? whatsappRaw
-                                            : phone;
+                                        final whatsapp =
+                                            whatsappRaw.isNotEmpty ? whatsappRaw : phone;
 
                                         final restaurantPhotoUrl =
                                             _s(r['photo_url']).trim();
@@ -336,13 +353,11 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                         final rs = _tryInt(d.priceRs);
                                         final mighty = _tryInt(d.priceMighty);
 
-                                        final dealTitleSafe =
-                                            _s(d.title).trim().isEmpty
-                                                ? 'Deal'
-                                                : _s(d.title).trim();
+                                        final dealTitleSafe = _s(d.title).trim().isEmpty
+                                            ? 'Deal'
+                                            : _s(d.title).trim();
 
-                                        final descSafe =
-                                            _s(d.description).trim();
+                                        final descSafe = _s(d.description).trim();
                                         final catSafe = _s(d.category).trim();
 
                                         final subLineSafe =
@@ -353,18 +368,15 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                                 ? mighty
                                                 : null;
 
-                                        final bool canPay =
-                                            requiredMighty != null
-                                                ? walletBalance >= requiredMighty
-                                                : false;
+                                        final bool canPay = requiredMighty != null
+                                            ? walletBalance >= requiredMighty
+                                            : false;
 
                                         return Padding(
-                                          padding:
-                                              const EdgeInsets.only(bottom: 14),
+                                          padding: const EdgeInsets.only(bottom: 14),
                                           child: DealCardCleanFinal(
                                             restaurantName: restaurantName,
-                                            restaurantPhotoUrl:
-                                                restaurantPhotoUrl,
+                                            restaurantPhotoUrl: restaurantPhotoUrl,
                                             dealTitle: dealTitleSafe,
                                             subLine: subLineSafe,
                                             priceRs: rs,
@@ -372,8 +384,7 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                             onTap: () {
                                               Navigator.of(context).push(
                                                 MaterialPageRoute(
-                                                  builder: (_) =>
-                                                      DealDetailScreen(
+                                                  builder: (_) => DealDetailScreen(
                                                     dealId: d.id,
                                                   ),
                                                 ),
@@ -388,12 +399,11 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                                   },
                                             onCall: phone.isEmpty
                                                 ? null
-                                                : () =>
-                                                    _launchTel(context, phone),
+                                                : () => _launchTel(context, phone),
                                             onWhatsapp: whatsapp.isEmpty
                                                 ? null
-                                                : () => _launchWhatsApp(
-                                                    context, whatsapp),
+                                                : () =>
+                                                    _launchWhatsApp(context, whatsapp),
                                             payEnabled: canPay,
                                             onPay: canPay
                                                 ? () async {
@@ -542,6 +552,12 @@ Future<void> _invokePay(
   WidgetRef ref, {
   required Map<String, dynamic> body,
 }) async {
+  // ✅ ADD: Offline guard (prevents crashes when internet is off)
+  if (!NetworkStatus.I.hasInternet) {
+    _toast(context, 'No internet. Please connect and try again.');
+    return;
+  }
+
   showDialog(
     context: context,
     barrierDismissible: false,
@@ -603,7 +619,7 @@ Future<void> _invokePay(
     ref.invalidate(myOrdersProvider);
   } catch (e) {
     if (context.mounted) Navigator.pop(context);
-    _toast(context, 'Error: $e');
+    _toast(context, 'Please connect to internet and try again.');
   }
 }
 
@@ -963,8 +979,7 @@ class _PremiumSearchBar extends StatelessWidget {
               hintStyle: TextStyle(color: Colors.white.withOpacity(0.45)),
               prefixIcon: Padding(
                 padding: const EdgeInsets.only(left: 12, right: 10),
-                child:
-                    Icon(Icons.search, color: Colors.white.withOpacity(0.75)),
+                child: Icon(Icons.search, color: Colors.white.withOpacity(0.75)),
               ),
               prefixIconConstraints: const BoxConstraints(minWidth: 46),
               suffixIcon: controller.text.isEmpty
@@ -1071,8 +1086,7 @@ class DealCardCleanFinal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rsText =
-        (priceRs != null && priceRs! > 0) ? 'Rs $priceRs' : '— — —';
+    final rsText = (priceRs != null && priceRs! > 0) ? 'Rs $priceRs' : '— — —';
 
     return RepaintBoundary(
       child: InkWell(

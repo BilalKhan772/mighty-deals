@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/widgets/no_internet_view.dart'; // ✅ ADD THIS
 import '../logic/wallet_controller.dart';
 
 /// ✅ safe string helper (avoids map casting crashes)
@@ -268,10 +269,17 @@ class WalletScreen extends ConsumerWidget {
                           // ✅ Balance Card
                           walletAsync.when(
                             loading: () => const _BalanceSkeleton(),
-                            error: (e, _) => Text(
-                              e.toString(),
-                              style: TextStyle(color: w(0.70)),
-                              textAlign: TextAlign.center,
+                            error: (e, _) => Center(
+                              child: NoInternetView(
+                                title: "Can't load wallet",
+                                message:
+                                    "Please connect to internet and try again.",
+                                onRetry: () {
+                                  ref.invalidate(myWalletProvider);
+                                  ref.invalidate(myLedgerProvider);
+                                  ref.invalidate(myOrdersProvider);
+                                },
+                              ),
                             ),
                             data: (wallet) => _BalanceCard(
                               balance: wallet.balance.toString(),
@@ -339,10 +347,15 @@ class WalletScreen extends ConsumerWidget {
                                         child: CircularProgressIndicator(),
                                       ),
                                       error: (e, _) => Center(
-                                        child: Text(
-                                          e.toString(),
-                                          style: TextStyle(color: w(0.70)),
-                                          textAlign: TextAlign.center,
+                                        child: NoInternetView(
+                                          title: "Can't load activity",
+                                          message:
+                                              "Please connect to internet and try again.",
+                                          onRetry: () {
+                                            ref.invalidate(myWalletProvider);
+                                            ref.invalidate(myLedgerProvider);
+                                            ref.invalidate(myOrdersProvider);
+                                          },
                                         ),
                                       ),
                                       data: (list) {
@@ -381,10 +394,15 @@ class WalletScreen extends ConsumerWidget {
                                         child: CircularProgressIndicator(),
                                       ),
                                       error: (e, _) => Center(
-                                        child: Text(
-                                          e.toString(),
-                                          style: TextStyle(color: w(0.70)),
-                                          textAlign: TextAlign.center,
+                                        child: NoInternetView(
+                                          title: "Can't load redemption",
+                                          message:
+                                              "Please connect to internet and try again.",
+                                          onRetry: () {
+                                            ref.invalidate(myWalletProvider);
+                                            ref.invalidate(myLedgerProvider);
+                                            ref.invalidate(myOrdersProvider);
+                                          },
                                         ),
                                       ),
                                       data: (orders) {

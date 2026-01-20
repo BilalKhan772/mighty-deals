@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/routing/route_names.dart';
 import '../../../core/notifications/push_service.dart';
+import '../../../core/widgets/no_internet_view.dart'; // ✅ ADD THIS
 import '../../wallet/logic/wallet_controller.dart';
 import '../logic/profile_controller.dart';
 
@@ -122,15 +123,16 @@ class ProfileScreen extends ConsumerWidget {
           loading: () => const SafeArea(
             child: Center(child: CircularProgressIndicator()),
           ),
+
+          // ✅ CHANGED: no raw error printing
           error: (e, _) => SafeArea(
-            child: Center(
-              child: Text(
-                e.toString(),
-                style: const TextStyle(color: Colors.white70),
-                textAlign: TextAlign.center,
-              ),
+            child: NoInternetView(
+              onRetry: () => ref.invalidate(myProfileProvider),
+              title: "Can't load profile",
+              message: "Please connect to internet and try again.",
             ),
           ),
+
           data: (p) {
             // ✅ if logged out / session gone, auto redirect to login (no flash)
             if (p == null) {
@@ -152,8 +154,7 @@ class ProfileScreen extends ConsumerWidget {
                 (p.whatsapp == null || p.whatsapp!.isEmpty) ? '-' : p.whatsapp!;
             final addressValue =
                 (p.address == null || p.address!.isEmpty) ? '-' : p.address!;
-            final cityValue =
-                (p.city == null || p.city!.isEmpty) ? '-' : p.city!;
+            final cityValue = (p.city == null || p.city!.isEmpty) ? '-' : p.city!;
 
             return SafeArea(
               child: Align(
@@ -204,8 +205,7 @@ class ProfileScreen extends ConsumerWidget {
                           height: 52,
                           child: OutlinedButton(
                             onPressed: () async {
-                              final shouldLogout =
-                                  await _showLogoutDialog(context);
+                              final shouldLogout = await _showLogoutDialog(context);
                               if (shouldLogout != true) return;
 
                               // ✅ 1) Remove push tokens WHILE still logged in (RLS needs auth)
@@ -259,8 +259,7 @@ class ProfileScreen extends ConsumerWidget {
       builder: (_) {
         return AlertDialog(
           backgroundColor: const Color(0xFF0B1220),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           title: const Text(
             'Log out?',
             style: TextStyle(
@@ -329,8 +328,7 @@ class ProfileScreen extends ConsumerWidget {
           child: Material(
             color: Colors.transparent,
             child: ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               child: Container(
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
@@ -390,8 +388,7 @@ class ProfileScreen extends ConsumerWidget {
                             label: 'City',
                             value: city.isEmpty ? null : city,
                             items: _cities,
-                            onChanged: (v) =>
-                                setSheetState(() => city = v ?? ''),
+                            onChanged: (v) => setSheetState(() => city = v ?? ''),
                           ),
                           const SizedBox(height: 16),
                           SizedBox(
@@ -403,10 +400,7 @@ class ProfileScreen extends ConsumerWidget {
                                 final addr = addrC.text.trim();
                                 final c = city.trim();
 
-                                if (phone.isEmpty ||
-                                    wa.isEmpty ||
-                                    addr.isEmpty ||
-                                    c.isEmpty) {
+                                if (phone.isEmpty || wa.isEmpty || addr.isEmpty || c.isEmpty) {
                                   _showTopMessage(
                                     context,
                                     'Please fill all fields',
@@ -416,8 +410,7 @@ class ProfileScreen extends ConsumerWidget {
                                 }
 
                                 await ref
-                                    .read(profileUpdateControllerProvider
-                                        .notifier)
+                                    .read(profileUpdateControllerProvider.notifier)
                                     .update(
                                       phone: phone,
                                       whatsapp: wa,

@@ -9,6 +9,9 @@ import 'core/routing/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/notifications/push_service.dart';
 
+// ✅ ADD: network status
+import 'core/network/network_status.dart';
+
 // Providers to invalidate on auth change
 import 'features/deals/logic/deals_controller.dart';
 import 'features/profile/logic/profile_controller.dart';
@@ -51,6 +54,9 @@ class _AppState extends ConsumerState<App> {
           // Give providers/profile some time
           await Future.delayed(const Duration(seconds: 1));
 
+          // ✅ If widget disposed meanwhile, stop safely
+          if (!mounted) return;
+
           // Try up to 3 times to get city
           String? city;
           for (int i = 0; i < 3; i++) {
@@ -62,12 +68,25 @@ class _AppState extends ConsumerState<App> {
 
             if (city != null && city.isNotEmpty) break;
             await Future.delayed(const Duration(milliseconds: 600));
+
+            if (!mounted) return;
           }
 
           print("🏙️ City resolved after sign-in: $city");
 
           if (city != null && city.isNotEmpty) {
-            await PushService.instance.upsertToken(city: city);
+            // ✅ CHANGE #1: Skip token upsert when offline (prevents Supabase errors)
+            if (!NetworkStatus.I.hasInternet) {
+              print("⚠️ Offline: token upsert skipped.");
+              return;
+            }
+
+            // ✅ CHANGE #2: Wrap in try/catch so no crash even if network drops
+            try {
+              await PushService.instance.upsertToken(city: city);
+            } catch (e) {
+              print("⚠️ Token upsert failed (ignored): $e");
+            }
           } else {
             print("⚠️ City is still null/empty, token not saved yet.");
           }

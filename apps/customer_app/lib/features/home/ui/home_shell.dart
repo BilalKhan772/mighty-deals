@@ -1,9 +1,14 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../deals/ui/deals_screen.dart';
 import '../../spins/ui/spins_screen.dart';
 import '../../wallet/ui/wallet_screen.dart';
 import '../../profile/ui/profile_screen.dart';
+
+// ✅ ADD
+import '../../../core/network/network_status.dart';
+import '../../../core/widgets/no_internet_view.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -15,6 +20,9 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int index = 0;
 
+  late final StreamSubscription<bool> _netSub;
+  bool _offline = false;
+
   final screens = const [
     DealsScreen(),
     SpinsScreen(),
@@ -23,16 +31,43 @@ class _HomeShellState extends State<HomeShell> {
   ];
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: screens[index],
+  void initState() {
+    super.initState();
+    _offline = !NetworkStatus.I.hasInternet;
+    _netSub = NetworkStatus.I.onChanged.listen((ok) {
+      if (!mounted) return;
+      setState(() => _offline = !ok);
+    });
+  }
 
-      // ✅ Force visible like your design
+  @override
+  void dispose() {
+    _netSub.cancel();
+    super.dispose();
+  }
+
+  bool _needsInternet(int i) {
+    // Wallet + Profile must be online (Supabase fetch)
+    // Deals/Spins: tum baad me cache add kar sakte ho, abhi online better.
+    return i == 2 || i == 3;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final block = _offline && _needsInternet(index);
+
+    return Scaffold(
+      body: block
+          ? NoInternetView(
+              onRetry: () => setState(() => _offline = !NetworkStatus.I.hasInternet),
+            )
+          : screens[index],
+
       bottomNavigationBar: SafeArea(
         top: false,
         child: Container(
           decoration: const BoxDecoration(
-            color: Colors.white, // <- like your screenshot
+            color: Colors.white,
             boxShadow: [
               BoxShadow(
                 blurRadius: 10,

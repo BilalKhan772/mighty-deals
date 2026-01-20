@@ -1,23 +1,38 @@
+import 'dart:io';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthErrorMapper {
   static String friendlyMessage(Object error) {
-    // Supabase Auth exceptions
+    // ✅ 1) OFFLINE / DNS / NO INTERNET (your exact case)
+    // Sometimes these come as SocketException / ClientException text
+    final s = error.toString();
+
+    if (error is SocketException ||
+        s.contains('SocketException') ||
+        s.contains('Failed host lookup') ||
+        s.contains('No address associated with hostname') ||
+        s.contains('ClientException')) {
+      return "You're offline. Please connect to internet.";
+    }
+
+    // ✅ 2) Supabase Auth exceptions (your existing logic kept)
     if (error is AuthException) {
       final msg = (error.message).toLowerCase();
 
       // Common validations
       if (msg.contains('missing email') ||
           msg.contains('missing email or phone') ||
-          msg.contains('email') && msg.contains('missing')) {
+          (msg.contains('email') && msg.contains('missing'))) {
         return 'Please enter your email.';
       }
 
-      if (msg.contains('missing password') || (msg.contains('password') && msg.contains('missing'))) {
+      if (msg.contains('missing password') ||
+          (msg.contains('password') && msg.contains('missing'))) {
         return 'Please enter your password.';
       }
 
-      if (msg.contains('invalid login credentials') || msg.contains('invalid_credentials')) {
+      if (msg.contains('invalid login credentials') ||
+          msg.contains('invalid_credentials')) {
         return 'Email or password is incorrect.';
       }
 
@@ -40,14 +55,11 @@ class AuthErrorMapper {
       return _clean(error.message);
     }
 
-    // Generic / unknown
+    // ✅ 3) Generic / unknown (same)
     return 'Something went wrong. Please try again.';
   }
 
   static String _clean(String raw) {
-    // Keep it short and user-friendly (no statusCode/code)
-    // Example raw: "Invalid login credentials"
-    // or "Password should be at least 6 characters"
     return raw.trim();
   }
 }

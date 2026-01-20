@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/routing/route_names.dart';
 import '../../../core/utils/support_launcher.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/network/network_status.dart'; // ✅ ADD
 import '../../profile/logic/profile_controller.dart';
 import '../../wallet/logic/wallet_controller.dart';
 import '../logic/auth_controller.dart';
@@ -191,7 +192,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             prefixIcon: Icons.lock_outline_rounded,
                             obscureText: _hidePass,
                             suffix: IconButton(
-                              onPressed: () => setState(() => _hidePass = !_hidePass),
+                              onPressed: () =>
+                                  setState(() => _hidePass = !_hidePass),
                               icon: Icon(
                                 _hidePass
                                     ? Icons.visibility_outlined
@@ -208,7 +210,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                             prefixIcon: Icons.lock_outline_rounded,
                             obscureText: _hideConfirm,
                             suffix: IconButton(
-                              onPressed: () => setState(() => _hideConfirm = !_hideConfirm),
+                              onPressed: () => setState(
+                                  () => _hideConfirm = !_hideConfirm),
                               icon: Icon(
                                 _hideConfirm
                                     ? Icons.visibility_outlined
@@ -229,6 +232,13 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                       FocusScope.of(context).unfocus();
 
                                       if (!_validate()) return;
+
+                                      // ✅ OFFLINE GUARD (NEW)
+                                      if (!NetworkStatus.I.hasInternet) {
+                                        setState(() => _formError =
+                                            "You're offline. Please connect to internet.");
+                                        return;
+                                      }
 
                                       final ok = await ref
                                           .read(authControllerProvider.notifier)
@@ -258,8 +268,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                                 ),
                                 const SizedBox(height: 6),
                                 TextButton.icon(
-                                  onPressed: () => SupportLauncher.open(context),
-                                  icon: const Icon(Icons.support_agent_rounded, size: 18),
+                                  onPressed: () =>
+                                      SupportLauncher.open(context),
+                                  icon: const Icon(Icons.support_agent_rounded,
+                                      size: 18),
                                   label: const Text('Open Support'),
                                   style: TextButton.styleFrom(
                                     foregroundColor: const Color(0xFF06B6D4),
@@ -322,12 +334,14 @@ class _InlineBanner extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
         color: const Color.fromRGBO(255, 86, 86, 0.12),
-        border: Border.all(color: const Color.fromRGBO(255, 86, 86, 0.35), width: 1),
+        border: Border.all(
+            color: const Color.fromRGBO(255, 86, 86, 0.35), width: 1),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline_rounded, size: 18, color: Color(0xFFFF6B6B)),
+          const Icon(Icons.error_outline_rounded,
+              size: 18, color: Color(0xFFFF6B6B)),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
