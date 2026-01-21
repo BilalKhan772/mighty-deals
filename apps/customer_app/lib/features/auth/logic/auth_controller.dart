@@ -6,7 +6,9 @@ import '../data/auth_repo.dart';
 final authRepoProvider = Provider<AuthRepo>((ref) => AuthRepo());
 
 final authControllerProvider =
-    AutoDisposeAsyncNotifierProvider<AuthController, void>(AuthController.new);
+    AutoDisposeAsyncNotifierProvider<AuthController, void>(
+  AuthController.new,
+);
 
 class AuthController extends AutoDisposeAsyncNotifier<void> {
   late final AuthRepo _repo = ref.read(authRepoProvider);
@@ -23,43 +25,68 @@ class AuthController extends AutoDisposeAsyncNotifier<void> {
 
   @override
   Future<void> build() async {
-    // nothing to load initially
+    // No initial load required
   }
 
+  // =========================
+  // SIGN UP
+  // =========================
   Future<bool> signup(String email, String password) async {
     state = const AsyncLoading();
+
     try {
       final e = _sanitizeEmail(email);
       await _repo.signup(email: e, password: password);
+
       state = const AsyncData(null);
       return true;
     } catch (e, st) {
+      // ✅ Debug (safe to keep, remove later if needed)
+      // ignore: avoid_print
+      print('SIGNUP ERROR RAW: $e');
+
       final msg = AuthErrorMapper.friendlyMessage(e);
       state = AsyncError(Exception(msg), st);
       return false;
     }
   }
 
+  // =========================
+  // LOGIN
+  // =========================
   Future<bool> login(String email, String password) async {
     state = const AsyncLoading();
+
     try {
       final e = _sanitizeEmail(email);
       await _repo.login(email: e, password: password);
+
       state = const AsyncData(null);
       return true;
     } catch (e, st) {
+      // ✅ Debug (helps detect DNS / offline / SSL issues)
+      // ignore: avoid_print
+      print('LOGIN ERROR RAW: $e');
+
       final msg = AuthErrorMapper.friendlyMessage(e);
       state = AsyncError(Exception(msg), st);
       return false;
     }
   }
 
+  // =========================
+  // LOGOUT
+  // =========================
   Future<void> logout() async {
     state = const AsyncLoading();
+
     try {
       await _repo.logout();
       state = const AsyncData(null);
     } catch (e, st) {
+      // ignore: avoid_print
+      print('LOGOUT ERROR RAW: $e');
+
       final msg = AuthErrorMapper.friendlyMessage(e);
       state = AsyncError(Exception(msg), st);
     }

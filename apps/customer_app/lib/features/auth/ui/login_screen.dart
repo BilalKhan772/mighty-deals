@@ -8,7 +8,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/routing/route_names.dart';
 import '../../../core/utils/support_launcher.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/network/network_status.dart'; // ✅ ADD
+import '../../../core/network/network_status.dart';
 import '../../profile/logic/profile_controller.dart';
 import '../../wallet/logic/wallet_controller.dart';
 import '../logic/auth_controller.dart';
@@ -104,6 +104,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       next.whenOrNull(
         error: (e, __) {
           final msg = e.toString().replaceFirst('Exception: ', '').trim();
+          if (!mounted) return;
           setState(() => _formError = msg.isEmpty ? 'Something went wrong.' : msg);
         },
       );
@@ -198,11 +199,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       // ✅ validate first
                                       if (!_validate()) return;
 
-                                      // ✅ OFFLINE GUARD (NEW)
+                                      // ✅ HYBRID OFFLINE GUARD:
+                                      // Show friendly warning, but DO NOT block login.
                                       if (!NetworkStatus.I.hasInternet) {
                                         setState(() => _formError =
-                                            "You're offline. Please connect to internet.");
-                                        return;
+                                            "You're offline. Trying to connect...");
+                                      } else {
+                                        // clear old banner if any
+                                        if (_formError != null) {
+                                          setState(() => _formError = null);
+                                        }
                                       }
 
                                       final ok = await ref
@@ -244,8 +250,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 ),
                                 const SizedBox(height: 6),
                                 TextButton.icon(
-                                  onPressed: () =>
-                                      SupportLauncher.open(context),
+                                  onPressed: () => SupportLauncher.open(context),
                                   icon: const Icon(Icons.support_agent_rounded,
                                       size: 18),
                                   label: const Text('Open Support'),

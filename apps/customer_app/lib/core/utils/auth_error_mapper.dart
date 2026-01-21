@@ -1,18 +1,26 @@
+import 'dart:async';
 import 'dart:io';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthErrorMapper {
   static String friendlyMessage(Object error) {
-    // ✅ 1) OFFLINE / DNS / NO INTERNET (your exact case)
-    // Sometimes these come as SocketException / ClientException text
-    final s = error.toString();
+    final s = error.toString().toLowerCase();
 
+    // ✅ 1) Real network/offline indicators (strong + reliable)
+    // Covers: no internet, DNS fail, handshake, timeouts, etc.
     if (error is SocketException ||
-        s.contains('SocketException') ||
-        s.contains('Failed host lookup') ||
-        s.contains('No address associated with hostname') ||
-        s.contains('ClientException')) {
-      return "You're offline. Please connect to internet.";
+        error is TimeoutException ||
+        s.contains('socketexception') ||
+        s.contains('failed host lookup') ||
+        s.contains('no address associated with hostname') ||
+        s.contains('network is unreachable') ||
+        s.contains('connection refused') ||
+        s.contains('connection reset') ||
+        s.contains('handshakeexception') ||
+        s.contains('timed out') ||
+        s.contains('clientexception')) {
+      return "You're offline. Please connect to internet and try again.";
     }
 
     // ✅ 2) Supabase Auth exceptions (your existing logic kept)
@@ -55,7 +63,7 @@ class AuthErrorMapper {
       return _clean(error.message);
     }
 
-    // ✅ 3) Generic / unknown (same)
+    // ✅ 3) Generic / unknown
     return 'Something went wrong. Please try again.';
   }
 

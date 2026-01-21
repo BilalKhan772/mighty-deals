@@ -1,6 +1,7 @@
 import 'dart:async';
+import 'dart:io';
+
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
 
 class NetworkStatus {
   NetworkStatus._();
@@ -15,17 +16,29 @@ class NetworkStatus {
   StreamSubscription? _sub;
   bool _started = false;
 
+  static const String _host = 'vvjxpvegqmlemebzmesy.supabase.co';
+
+  Future<bool> _check() async {
+    try {
+      final res = await InternetAddress.lookup(_host)
+          .timeout(const Duration(seconds: 3));
+      return res.isNotEmpty && res.first.rawAddress.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> start() async {
-    if (_started) return; // ✅ prevent double start
+    if (_started) return;
     _started = true;
 
-    // ✅ initial check (real internet reachability)
-    _hasInternet = await InternetConnection().hasInternetAccess;
+    // ✅ initial check
+    _hasInternet = await _check();
     _safeAdd(_hasInternet);
 
-    // ✅ listen to connectivity changes, then confirm real internet
+    // ✅ listen to connectivity changes then confirm with real lookup
     _sub = Connectivity().onConnectivityChanged.listen((_) async {
-      final ok = await InternetConnection().hasInternetAccess;
+      final ok = await _check();
       if (ok != _hasInternet) {
         _hasInternet = ok;
         _safeAdd(ok);
@@ -34,7 +47,7 @@ class NetworkStatus {
   }
 
   void _safeAdd(bool v) {
-    if (_controller.isClosed) return; // ✅ avoid "Bad state: Stream has been closed"
+    if (_controller.isClosed) return;
     _controller.add(v);
   }
 
