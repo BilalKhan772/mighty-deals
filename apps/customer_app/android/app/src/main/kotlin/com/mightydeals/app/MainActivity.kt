@@ -1,4 +1,4 @@
-package com.example.mighty
+package com.mightydeals.app
 
 import io.flutter.embedding.android.FlutterActivity
 
