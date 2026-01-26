@@ -342,10 +342,12 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                         final restaurantId = _s(r['id']).trim();
 
                                         final phone = _s(r['phone']).trim();
-                                        final whatsappRaw = _s(r['whatsapp']).trim();
+                                        final whatsappRaw =
+                                            _s(r['whatsapp']).trim();
 
-                                        final whatsapp =
-                                            whatsappRaw.isNotEmpty ? whatsappRaw : phone;
+                                        final whatsapp = whatsappRaw.isNotEmpty
+                                            ? whatsappRaw
+                                            : phone;
 
                                         final restaurantPhotoUrl =
                                             _s(r['photo_url']).trim();
@@ -353,9 +355,10 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                         final rs = _tryInt(d.priceRs);
                                         final mighty = _tryInt(d.priceMighty);
 
-                                        final dealTitleSafe = _s(d.title).trim().isEmpty
-                                            ? 'Deal'
-                                            : _s(d.title).trim();
+                                        final dealTitleSafe =
+                                            _s(d.title).trim().isEmpty
+                                                ? 'Deal'
+                                                : _s(d.title).trim();
 
                                         final descSafe = _s(d.description).trim();
                                         final catSafe = _s(d.category).trim();
@@ -368,12 +371,14 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                                 ? mighty
                                                 : null;
 
-                                        final bool canPay = requiredMighty != null
-                                            ? walletBalance >= requiredMighty
-                                            : false;
+                                        final bool canPay =
+                                            requiredMighty != null
+                                                ? walletBalance >= requiredMighty
+                                                : false;
 
                                         return Padding(
-                                          padding: const EdgeInsets.only(bottom: 14),
+                                          padding:
+                                              const EdgeInsets.only(bottom: 14),
                                           child: DealCardCleanFinal(
                                             restaurantName: restaurantName,
                                             restaurantPhotoUrl: restaurantPhotoUrl,
@@ -384,7 +389,8 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                             onTap: () {
                                               Navigator.of(context).push(
                                                 MaterialPageRoute(
-                                                  builder: (_) => DealDetailScreen(
+                                                  builder: (_) =>
+                                                      DealDetailScreen(
                                                     dealId: d.id,
                                                   ),
                                                 ),
@@ -402,8 +408,8 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                                 : () => _launchTel(context, phone),
                                             onWhatsapp: whatsapp.isEmpty
                                                 ? null
-                                                : () =>
-                                                    _launchWhatsApp(context, whatsapp),
+                                                : () => _launchWhatsApp(
+                                                    context, whatsapp),
                                             payEnabled: canPay,
                                             onPay: canPay
                                                 ? () async {
@@ -423,8 +429,10 @@ class _DealsScreenState extends ConsumerState<DealsScreen> {
                                                   }
                                                 : () {
                                                     if (requiredMighty == null) {
-                                                      _toast(context,
-                                                          'Invalid Mighty price for this deal.');
+                                                      _toast(
+                                                        context,
+                                                        'Invalid Mighty price for this deal.',
+                                                      );
                                                     } else {
                                                       _toast(
                                                         context,
@@ -683,7 +691,7 @@ class _InfoIconButton extends StatelessWidget {
   }
 }
 
-/// ✅ NEW: Dark-navy single color dialog (no weird background)
+/// ✅ Dialog
 class _DealsInfoDialog extends StatelessWidget {
   const _DealsInfoDialog();
 
@@ -705,7 +713,7 @@ class _DealsInfoDialog extends StatelessWidget {
                 filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: _panel, // ✅ single dark navy
+                    color: _panel,
                     borderRadius: BorderRadius.circular(22),
                     border: Border.all(color: Colors.white.withOpacity(0.12)),
                     boxShadow: [
@@ -720,7 +728,6 @@ class _DealsInfoDialog extends StatelessWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Header
                       Row(
                         children: [
                           Container(
@@ -787,6 +794,15 @@ class _DealsInfoDialog extends StatelessWidget {
                         title: 'Insufficient balance',
                         body:
                             'If your wallet does not have enough Mighty points, the “Redeem with Mighty” button will be disabled (you won’t be able to tap it).',
+                      ),
+
+                      // ✅ NEW (your requested line)
+                      const SizedBox(height: 10),
+                      _InfoCard(
+                        bg: _card,
+                        title: 'View restaurant details',
+                        body:
+                            'To view the full restaurant profile, tap the restaurant’s profile picture. You’ll be redirected to the restaurant page where you can view the menu and details.',
                       ),
 
                       const SizedBox(height: 14),
