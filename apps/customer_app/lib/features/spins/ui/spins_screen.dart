@@ -158,8 +158,8 @@ class _SpinsScreenState extends State<SpinsScreen> {
                                   await Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                        builder: (_) =>
-                                            SpinDetailScreen(spin: s)),
+                                      builder: (_) => SpinDetailScreen(spin: s),
+                                    ),
                                   );
                                   await _load(showPublishToast: false);
                                 },
@@ -204,7 +204,10 @@ class _SpinCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final badge = _badgeText(spin);
     final t = _timeLeftText(spin);
-    final mightyCost = (spin.paidCostPerSlot <= 0) ? 10 : spin.paidCostPerSlot; // ✅ UI fallback
+    final mightyCost =
+        (spin.paidCostPerSlot <= 0) ? 10 : spin.paidCostPerSlot; // ✅ UI fallback
+
+    final bool isJoinable = spin.status == 'published' || spin.status == 'running';
 
     return InkWell(
       onTap: onTap,
@@ -239,6 +242,31 @@ class _SpinCard extends StatelessWidget {
                 ),
               ),
             ),
+
+            // ✅ NEW: subtle guidance text (doesn't disturb existing UI)
+            const SizedBox(height: 8),
+            if (isJoinable)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.touch_app,
+                    size: 16,
+                    color: Colors.white.withOpacity(0.55),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Tap to join',
+                    style: TextStyle(
+                      color: Colors.white.withOpacity(0.58),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12.5,
+                      letterSpacing: -0.1,
+                    ),
+                  ),
+                ],
+              ),
+
             const SizedBox(height: 12),
             Wrap(
               spacing: 10,
